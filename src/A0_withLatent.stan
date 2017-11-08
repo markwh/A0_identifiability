@@ -3,7 +3,7 @@ data {
 
   // Dimensions
   int<lower=0> nt; // number of observation times
-  vector[nt] dA;
+  vector<lower = 0>[nt] dA;
   real logA0_hat;
   real<lower=0> sigmaA_hat;
   // vector<lower=0>[nt] et_est;

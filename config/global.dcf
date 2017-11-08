@@ -1,13 +1,13 @@
 version: 0.8
 data_loading: FALSE
-cache_loading: FALSE
+cache_loading: TRUE
 recursive_loading: FALSE
-munging: TRUE
+munging: FALSE
 logging: FALSE
 load_libraries: TRUE
 libraries: reshape2, ggplot2, stringr, lubridate, todoList, markstats, R.matlab,
          testthat, tidyr, broom, fitdistrplus, zyp, changepoint, knitr, foreign,
-         Hmisc, car, purrr, dplyr
+         Hmisc, car, purrr, rstan, dplyr
 as_factors: FALSE
 data_tables: FALSE
 attach_internal_libraries: FALSE

@@ -82,3 +82,8 @@ test_smry <- test_full %>%
             A0 = median(area_m2), logA0 = log(A0),
             logA_sd = sd(log(area_m2)), logA0_mean = mean(log(area_m2)),
             n = n())
+
+cache("train_full")
+cache("train_smry")
+cache("test_full")
+cache("test_smry")
