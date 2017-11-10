@@ -6,7 +6,7 @@
 # Need to get prior on 3 parameters: logA0 (median), sigma_logA, and 
 # sigma_logA0, where the last one is standard deviation of median from mean.
 
-pairs(train_smry %>% select(-xs, -A0))
+# pairs(train_smry %>% select(-xs, -A0, -HUC, -HUC2))
 
 plot(logA0 ~ logW_sd, train_smry)
 
@@ -45,3 +45,9 @@ logA0_pred <- predict(A0lm, newdata = test_smry)
 
 plot(logA0_pred ~ test_smry$logA0)
 sd(logA0_pred - test_smry$logA0)
+
+cache("logA0_pred")
+
+
+sigmalogA_pred <- predict(siglogA_lm, newdata = test_smry)
+cache("sigmalogA_pred")

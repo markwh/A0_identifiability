@@ -59,7 +59,8 @@ hswot2 <- hswot1 %>%
   mutate(n = n(), A0 = median(area_m2), dA = area_m2 - A0) %>% 
   ungroup() %>% 
   filter(n > 30) %>% 
-  arrange(xs, datetime)
+  arrange(xs, datetime) %>% 
+  unique()
 
 sum(is.na(hswot2$HUC)) # less than 1/10 of original missing values.
 

@@ -5,46 +5,41 @@ data {
   int<lower=0> nt; // number of observation times
   vector[nt] dA;
   real logA0_hat;
-  real<lower=0> sigmaA_hat;
-  // vector<lower=0>[nt] et_est;
-  // vector[nt] ds_est;
-  // 
-  // vector<lower = 0>[nt] p_sd;
-  // vector<lower=0>[nt] et_sd;
-  // vector<lower=0>[nt] ds_sd;
-  
-  
+  real logA0_sd;
+  real<lower=0> sigmalogA_hat;
+  real<lower=0> sigmalogA_sd;
 }
 
+transformed data {
+  real<lower = 0> minA0;
+  
+  minA0 = 1 - min(dA);
+}
 
 parameters {
   
-  real<lower=0> A0;
-  real<lower=0> sigma_A;
-  // vector<lower = 0>[nt] p;
-  // vector<lower=0>[nt] et;
-  // vector[nt] ds;
-
+  real<lower = minA0> A0;
+  real<lower=0> sigma_logA;
 }
 
 
-
 transformed parameters {
-  
   vector[nt] logA;
+  real logA0;
   
   logA = log(A0 + dA);
-
+  logA0 = log(A0);
 }
 
 
 
 model {
   
-  // target += dot_self()
+  logA0 ~ normal(logA0_hat, logA0_sd);
+  sigma_logA ~ normal(sigmalogA_hat, sigmalogA_sd);
+  logA ~ normal(log(A0), sigma_logA);
   
-  logA ~ normal(log(A0), sigma_A);
-  
-  target += logA;
+  target += -logA;
+  target += -logA0;
 
 }

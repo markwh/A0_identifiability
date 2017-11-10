@@ -28,6 +28,7 @@ hswot <- hswot0 %>%
             area_m2 = xsec_area_va * 0.092903,
             lat = dec_lat_va,
             lon = dec_long_va,
-            xs = site_no)
+            xs = site_no) %>% 
+  unique()
 
 cache("hswot")
