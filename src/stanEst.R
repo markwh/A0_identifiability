@@ -34,6 +34,7 @@ dA_test <- test_full %>%
 stanPriorList <- test_smry %>% 
   split(.$xs) %>% 
   map(makeStanPriors)
+cache("stanPriorList")
 
 sum(!(names(stanPriorList) == names(dA_test)))
 

@@ -1,0 +1,58 @@
+# autocorrelation.R
+# Mark Hagemann
+# 11/14/2017
+
+# Assume logA AR1 coefficient the same as logQ AR1 coefficient.
+
+# Get Q for a bunch of locations.
+
+
+train_smry %>% glimpse()
+
+train_full %>% 
+  arrange(xs, datetime) %>% 
+  glimpse() %>% 
+  group_by(xs) %>% 
+  mutate(difftime = c(NA, diff(as.numeric(datetime))) / 3600 / 24) %>% 
+  glimpse() %>% 
+  summary()
+ 
+# Median difftime is 42 days. Will be hard to get AR1 coefficient here.
+# So get Q from NWIS.
+
+trainxs_nwis <- sprintf("%08d", train_smry$xs)
+trainxs_nwis <- trainxs_nwis[!grepl("NA", trainxs_nwis)] # get rid of NAs
+
+set.seed(86142)
+randorder <- sample(1:length(trainxs_nwis), replace = FALSE)
+
+
+
+flow10 <- readNWISdv(siteNumbers = trainxs_nwis[randorder][1:10], parameterCd = "00060",
+                     startDate = "2000-01-01")
+
+flow100 <- readNWISdv(siteNumbers = trainxs_nwis[randorder][1:100], parameterCd = "00060",
+                      startDate = "2000-01-01")
+
+flow100 %>% 
+  group_by(site_no) %>% 
+  summarize(n = n())
+
+flowAC1 <- flow100 %>% 
+  transmute(site_no, Date, logQ = log(X_00060_00003)) %>% 
+  filter(is.finite(logQ)) %>% 
+  split(.$site_no) %>% 
+  map(~arima(.$logQ, order = c(1, 0, 0))) 
+
+fac1 <- flowAC1 %>% 
+  map(~.[["coef"]][1]) %>% 
+  unlist()
+
+summary(fac1)  
+  
+
+fooacf <- pacf(foo$logQ)
+
+foodat <- whatNWISdata(siteNumber = trainxs_nwis[1])
+
+
