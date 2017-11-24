@@ -1,0 +1,138 @@
+---
+title: "Appendix"
+author: "Mark Hagemann"
+date: "November 13, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+**Herein are things that I chopped from the rest of the manuscript, but that may be of use later**
+
+
+
+
+#### Scenario 2: closer to reality (Taylor-approx'd linear model for Mannings)
+
+In reality, $A_{it}$ cannot be measured fully, but $\delta A_{it} = A_{it} - A_{0,i}$ can. Thus we rewrite equation @eq:Manning3 as:
+
+$$
+4 \log W_{it} - 3 \log S_{it} =  10 \log (\delta A_{it} + A_{0,i}) - 6 \log n - 6 \log Q_{t}
+$$
+{@eq:Manning4}
+
+Using a Taylor series we can break this up somewhat:
+
+$$
+\log(A_{0, i} + \delta A_{it}) =  log(A_{0, i}) + \sum_{k = 1}^\infty (-1)^{k - 1} \frac{1}{k!}\Big(\frac{\delta A_{it}}{A_{0, i}}\Big)^k
+$$
+{@eq:logA_Taylor}
+
+For notational simplicity, define $\gamma_{it} = \sum_{k = 1}^\infty (-1)^{k - 1} \frac{1}{k!}\Big(\frac{\delta A_{it}}{A_{0, i}}\Big)^k$. Then we have:
+
+$$
+4 \log W_{it} - 3 \log S_{it} =  10 \log A_{0,i} + 10 \gamma_{it} - 6 \log n - 6 \log Q_{t}
+$$
+
+Of the quantities on the RHS of equation, $\gamma_{it}$ is unique in that we have some information about it via $\delta A_{it}$; all others are entirely unmeasured. For the sake of exploration, assume that we can fully measure $\gamma_{it}$, giving the following model relating observations and unknowns:
+
+$$
+4 \log W_{it} - 3 \log S_{it} - 10 \gamma_{it} =  10 \log A_{0,i} - 6 \log n - 6 \log Q_{t}
+$$
+
+Again, for simplicity, define:
+
+- $y_{it} = -\frac{2}{3} \log W_{it} + \frac{1}{2} \log S_{it} + \frac{5}{3} \gamma_{it}$,
+- $\tilde{n} = \log n$
+- $\tilde{a_i} = -\frac{5}{3} \log{A_{0,i}}$
+- $\tilde{q_t} = \log Q_t$
+
+Thus, the model for this scenario is:
+
+
+$$
+y_{it} = \tilde{n} + \tilde{a_i} + \tilde{q_t}
+$$
+
+The model matrix for this system using any number for $N_x$ and $N_t$ will again be rank-deficient, meaning that these parameters cannot be estimated. 
+
+$$
+\begin{bmatrix}
+y_{11} \\
+y_{12} \\
+\vdots \\
+y_{1N_t} \\
+y_{21} \\
+y_{22} \\
+\vdots \\
+y_{2 N_t} \\
+\vdots \\
+y_{N_x N_t}
+\end{bmatrix}
+
+= 
+
+\begin{bmatrix}
+1 & 1 & 0 & \dots & 0 & 1 & 0 & \dots & 0\\
+1 & 1 & 0 & \dots & 0 & 0 & 1 & \dots & 0\\
+\vdots & \vdots & \vdots & \ddots & \vdots & \vdots & \vdots & \ddots & \vdots \\
+1 & 1 & 0 & \dots & 0 & 0 & 0 & \dots & 1 \\
+1 & 0 & 1 & \dots & 0 & 1 & 0 & \dots & 0 \\
+1 & 0 & 1 & \dots & 0 & 0 & 1 & \dots & 0\\
+\vdots & \vdots & \vdots & \ddots & \vdots & \vdots & \vdots & \ddots & \vdots \\
+1 & 0 & 1 & \dots & 0 & 0 & 0 & \dots & 1\\
+\vdots & \vdots & \vdots & \ddots & \vdots & \vdots & \vdots & \ddots & \vdots\\
+1 & 0 & 0 & \dots & 1 & 0 & 0 & \dots & 1\\
+\end{bmatrix}
+
+\begin{bmatrix}
+\tilde{n} \\
+\tilde{a}_1 \\
+\tilde{a}_2 \\
+\vdots \\
+\tilde{a}_{N_x} \\\
+\tilde{q}_1 \\
+\tilde{q}_2 \\
+\vdots \\
+\tilde{q}_{N_t} \\
+\end{bmatrix}
+$$
+
+Though this matrix is still rank-deficient, it is no more rank deficient than in the previous scenario. In fact, the following reparameterization is estimable:
+
+TODO
+- $\dot{a_i} = \tilde{a_i} + \tilde{n}$
+
+As before, we can estimate $c_1Q_t$, where $c_1 = \frac{n}{\bar{Q}}$, and $\bar{Q}$ is the geometric mean of discharge. We can also estimate $c_2 A_{0,i}$, where $c_2 = \frac{n}{\bar{A_0}}$, and $\bar{A_0}$ is the geometric mean of basal area.
+
+
+
+#### Scenario 3: Overly pessimistic case
+
+In reality, $A_{it}$ cannot be measured fully, but $\delta A_{it} = A_{it} - A_{0,i}$ can. However, in order to restrict the discussion to linear models, this section will assume nothing about $A_{it}$ is observable. Thus we rewrite equation @eq:Manning3 as:
+
+$$
+4 \log W_{it} - 3 \log S_{it} =  10 \log A_{it} - 6 \log n - 6 \log Q_{t}
+$$
+{#eq:Manning4}
+
+Since equation @Manning4 has unknown quantities that were known in equation @eq:Manning3, the model matrix is more rank deficient, meaning that there are additional dimensions to the space of equifinal parameters. As before, we can reparameterize this as follows:
+
+- $y_{it} = -\frac{2}{3} \log W_{it} + \frac{1}{2} \log S_{it}$,
+- $\tilde{n} = \log n$
+- $q_t = \log Q_t$
+- $\bar{q} = \frac{1}{N_t}\sum_{t=1}^{N_t} q_t$
+- $\dot{q_t} = q_t - \bar{q}$
+- $a_{it} = -\frac{5}{3}\log A_{it}$
+- $\bar{a}_{i \cdot} = \frac{1}{N_t} \sum_{t = 1}^{N_t}a_{it}$
+- $\dot{a}_{it} = a_{it} - \bar{a}_{i \cdot}$
+
+leaving the following model:
+
+$$
+y_{it} = \tilde{n} + \bar{a}_{i \cdot} + \dot{a}_{it} + \bar{q} + \dot{q_t}
+$$
+
+This is a dismal equation: practially nothing of our quantities of interest can be determined, since 

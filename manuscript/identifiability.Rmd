@@ -1,0 +1,292 @@
+---
+title: "Untitled"
+author: "Mark Hagemann"
+date: "October 30, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+The purpose of this document is to remove some of the intrigue surrounding Bayesian flow-law inversion and McFLI more generally. As analytic combinations of the underlying flow laws have not been fruitful, other approaches including hueristic optimization and Bayesian inference have been employed. These have the benefit of yielding estimates of quantities of interest, including discharge and flow-law parameters, but they do so at the expense of obscuring much of the inferential machinery.
+
+## Flow Laws
+
+### Manning's equation
+
+Manning's equation can be written as follows:
+
+$$
+Q_t = \frac{1}{n}A_{it}^{5/3}W_{it}^{-2/3}S_{it}^{1/2}
+$$
+
+{#eq:Manning1}
+
+In developing the relationship between @eq:Manning1 and the data, we will find it useful to work with the log transform:
+
+$$
+6 \log Q_m  =  - 6 \log n  + 10 \log A - 4 \log W + 3 \log S 
+$$
+{#eq:Manning2}
+
+Bear in mind as this assessment continues that @eq:Manning1 and @eq:Manning2 are mathematically equivalent. 
+
+To begin, consider 2 different observation scenarios--one overly optimistic and one overly pessimistic, with reality lying somewhere in between the two. 
+
+#### Scenario 1: $A$ is an observed variable
+
+Suppose we have some way of measuring slope, width, and cross-sectional area at a series of locations in a mass-conserved reach. Then, for each time $t$ and location $i$ we can write
+
+$$
+4 \log W_{it} - 3 \log S_{it} - 10 \log A_{it} =  - 6 \log n - 6 \log Q_{t}
+$$
+{#eq:Manning3}
+
+The goal of the inference is to infer the parameters $n$ and $Q$ using only the information provided by the observations on the left hand side. We will see that even in this overly optimistic case ($A$ can never be measured fully via remote-sensing), the parameters cannot be uniquely determined. 
+
+To simplify the notation, define the following:
+
+- $y_{it} = -\frac{2}{3} \log W_{it} + \frac{1}{2} \log S_{it} + \frac{5}{3} \log A_{it}$,
+- $\tilde{n} = \log n$
+- $\tilde{q_t} = \log Q_t$
+
+Then equation @eq:Manning3 becomes
+
+$$
+y_{it} = \tilde{n} + \tilde{q_t}
+$$
+
+Consider the case where $N_x = N_t = 1$. Then the system of equations is simply $y_{11} = \tilde{n} + \tilde{q_1}$. In matrix notation, this is:
+
+$$
+\begin{bmatrix}
+y_{11}
+\end{bmatrix}
+
+= 
+
+\begin{bmatrix}
+1 & 1
+\end{bmatrix}
+
+\begin{bmatrix}
+\tilde{n} \\
+\tilde{q}_1
+\end{bmatrix}
+$$
+Since the model matrix, $[1 \space \space 1]$ is not full rank, the parameters are not identifiable. 
+
+If we increase the number of observation locations to an arbitrarily large number (still within a mass-conserved reach), the model matrix never reaches full rank:
+
+$$
+\begin{bmatrix}
+y_{11} \\
+y_{21} \\
+\vdots \\
+y_{N_x1}
+\end{bmatrix}
+
+= 
+
+\begin{bmatrix}
+1 & 1 \\
+1 & 1 \\
+\vdots & \vdots \\
+1 & 1 \\
+\end{bmatrix}
+
+\begin{bmatrix}
+\tilde{n} \\
+\tilde{q}_1
+\end{bmatrix}
+$$
+
+The model matrix still has rank 1. Increasing the number of times is of no help either:
+
+$$
+\begin{bmatrix}
+y_{11} \\
+y_{21} \\
+\vdots \\
+y_{N_x1} \\
+y_{12} \\
+y_{22} \\
+\vdots \\
+y_{N_x2} \\
+\vdots \\
+y_{N_x N_t}
+\end{bmatrix}
+
+= 
+
+\begin{bmatrix}
+1 & 1 & 0 & \dots & 0\\
+1 & 1 & 0 & \dots & 0\\
+\vdots & \vdots & \vdots & \ddots & \vdots \\
+1 & 1 & 0 & \dots & 0\\
+1 & 0 & 1 & \dots & 0\\
+1 & 0 & 1 & \dots & 0\\
+\vdots & \vdots & \vdots & \ddots & \vdots \\
+1 & 0 & 1 & \dots & 0\\
+\vdots & \vdots & \vdots & \ddots & \vdots \\
+1 & 0 & 0 & \dots & 1\\
+\end{bmatrix}
+
+\begin{bmatrix}
+\tilde{n} \\
+\tilde{q}_1 \\
+\tilde{q}_2 \\
+\vdots \\
+\tilde{q}_{N_t} \\
+\end{bmatrix}
+$$
+
+This will always be of rank $N_t$, one less than full rank. While this means that $n$ and $Q_t$ cannot be estimated jointly, it also leads to a parameterization that does not suffer from the identifiability problem. We could, for example, define a parameter $\alpha = \tilde{n} + \tilde{q_1}$ and substitute this in, yielding a full-rank model matrix. However, this is difficult to interpret hydrologically. Instead, define $\dot{q_t} = \tilde{q_t} - $
+
+
+#### Scenario 2: closer to reality
+
+In reality, $A_{it}$ cannot be measured fully, but $\delta A_{it} = A_{it} - A_{0,i}$ can. Thus we rewrite equation @eq:Manning3 as:
+
+$$
+4 \log W_{it} - 3 \log S_{it} =  10 \log (\delta A_{it} + A_{0,i}) - 6 \log n - 6 \log Q_{t}
+$$
+{@eq:Manning4}
+
+Using a Taylor series we can break this up somewhat:
+
+$$
+\log(A_{0, i} + \delta A_{it}) =  log(A_{0, i}) + \sum_{k = 1}^\infty (-1)^{k - 1} \frac{1}{k!}\Big(\frac{\delta A_{it}}{A_{0, i}}\Big)^k
+$$
+{@eq:logA_Taylor}
+
+For notational simplicity, define $\gamma_{it} = \sum_{k = 1}^\infty (-1)^{k - 1} \frac{1}{k!}\Big(\frac{\delta A_{it}}{A_{0, i}}\Big)^k$. Then we have:
+
+$$
+4 \log W_{it} - 3 \log S_{it} =  10 \log A_{0,i} + 10 \gamma_{it} - 6 \log n - 6 \log Q_{t}
+$$
+
+Of the quantities on the RHS of equation, $\gamma_{it}$ is unique in that we have some information about it via $\delta A_{it}$; all others are entirely unmeasured. For the sake of exploration, assume that we can fully measure $\gamma_{it}$, giving the following model relating observations and unknowns:
+
+$$
+4 \log W_{it} - 3 \log S_{it} - 10 \gamma_{it} =  10 \log A_{0,i} - 6 \log n - 6 \log Q_{t}
+$$
+
+Again, for simplicity, define:
+
+- $y_{it} = -\frac{2}{3} \log W_{it} + \frac{1}{2} \log S_{it} + \frac{5}{3} \gamma_{it}$,
+- $\tilde{n} = \log n$
+- $\tilde{a_i} = -\frac{5}{3} \log{A_{0,i}}$
+- $\tilde{q_t} = \log Q_t$
+
+Thus, the model for this scenario is:
+
+
+$$
+y_{it} = \tilde{n} + \tilde{a_i} + \tilde{q_t}
+$$
+
+The model matrix for this system using any number for $N_x$ and $N_t$ will again be rank-deficient, meaning that these parameters cannot be estimated. 
+
+$$
+\begin{bmatrix}
+y_{11} \\
+y_{12} \\
+\vdots \\
+y_{1N_t} \\
+y_{21} \\
+y_{22} \\
+\vdots \\
+y_{2 N_t} \\
+\vdots \\
+y_{N_x N_t}
+\end{bmatrix}
+
+= 
+
+\begin{bmatrix}
+1 & 1 & 0 & \dots & 0 & 1 & 0 & \dots & 0\\
+1 & 1 & 0 & \dots & 0 & 0 & 1 & \dots & 0\\
+\vdots & \vdots & \vdots & \ddots & \vdots & \vdots & \vdots & \ddots & \vdots \\
+1 & 1 & 0 & \dots & 0 & 0 & 0 & \dots & 1 \\
+1 & 0 & 1 & \dots & 0 & 1 & 0 & \dots & 0 \\
+1 & 0 & 1 & \dots & 0 & 0 & 1 & \dots & 0\\
+\vdots & \vdots & \vdots & \ddots & \vdots & \vdots & \vdots & \ddots & \vdots \\
+1 & 0 & 1 & \dots & 0 & 0 & 0 & \dots & 1\\
+\vdots & \vdots & \vdots & \ddots & \vdots & \vdots & \vdots & \ddots & \vdots\\
+1 & 0 & 0 & \dots & 1 & 0 & 0 & \dots & 1\\
+\end{bmatrix}
+
+\begin{bmatrix}
+\tilde{n} \\
+\tilde{a}_1 \\
+\tilde{a}_2 \\
+\vdots \\
+\tilde{a}_{N_x} \\\
+\tilde{q}_1 \\
+\tilde{q}_2 \\
+\vdots \\
+\tilde{q}_{N_t} \\
+\end{bmatrix}
+$$
+
+Though this matrix is still rank-deficient, it is no more rank deficient than in the previous scenario. In fact, the following reparameterization is estimable:
+
+TODO
+- $\dot{a_i} = \tilde{a_i} + \tilde{n}$
+
+As before, we can estimate $c_1Q_t$, where $c_1 = \frac{n}{\bar{Q}}$, and $\bar{Q}$ is the geometric mean of discharge. We can also estimate $c_2 A_{0,i}$, where $c_2 = \frac{n}{\bar{A_0}}$, and $\bar{A_0}$ is the geometric mean of basal area.
+
+### AMHG
+
+At-many-stations hydraulic geometry [@Gleason2014] can be expressed as:
+
+$$
+\log Q_t = \frac{1}{b_i} (\log W_{it} - \log{W_c}) + \log Q_c
+$$
+{#eq:AMHG1}
+
+Rewritten to isolate the observed variable, $\log W_{it}$, this is:
+
+$$
+\log W_{it} = b_i (\log Q_{t} - \log{Q_c}) + \log W_c
+$$
+
+For simplicity, define the following:
+
+- $y_{it} = \log W_{it}$
+- $\tilde{b}_i = b_i - \bar{b}$
+- $\tilde{q_t} = \log Q_t - E[{\log Q}]$
+- $\tilde{q_c} = \log Q_c - E[{\log Q}]$
+- $\tilde{w}_c = \log W_c$
+- $\gamma_{it} = b_i$
+
+Then, 
+
+$$
+\begin{aligned}
+\tilde{y}_{it} &= b_i (\log Q_{t} - \log{Q_c}) + \log W_c \\ 
+& = b_i (\tilde{q_t} - \tilde{q_c}) + \tilde{w}_c \\ 
+& = (\tilde{b}_i + \bar{b})(\tilde{q_t} - \tilde{q_c}) + \tilde{w}_c \\ 
+& = \gamma_{it} + \alpha_i + \beta_t + \mu \\ 
+\end{aligned}
+$$
+
+where
+
+- $\gamma_{it} = (b_i - \bar{b})(\log Q_t - E[\log Q])$
+- $\alpha_i = (b_i - \bar{b})(\log Q_c - E[{\log Q}])$
+- $\beta_t = $
+
+
+
+## Likelihood and information-theoretic approach.
+
+In the above analysis, no assumptions were made about the exact distribution of model errors, only that they had an expected value of zero. We were also limited in our analysis by the restriction that all models be linear. In this section we impose more rigorous assumptions about error structure in order to make more subtle conclusions about SWOT's quantities of interest. 
+
+
+
+

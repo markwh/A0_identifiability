@@ -1,0 +1,176 @@
+---
+title: "linModel"
+author: "Mark Hagemann"
+date: "November 16, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+In this section we will use linear model theory to illustrate the "knowability" of unknowns in common McFLI applications. 
+
+### Manning's equation
+
+
+Manning's equation can be written as follows:
+
+$$
+Q = \frac{1}{n}A^{5/3}W^{-2/3}S^{1/2}
+$$
+{#eq:Manning1}
+
+where $Q$ is discharge, $n$ is the Manning flow-resistance parameter, $A$ is cross-sectional area, $W$ is surface width, and $S$ is surface slope. 
+
+In developing the relationship between @eq:Manning1 and the data, it is easiest to work with the log transform:
+
+$$
+\log Q  =  - \log n  + \frac{5}{3} \log A - \frac{2}{3} \log W + \frac{1}{2} \log S 
+$$
+{#eq:Manning2}
+
+bearing in mind that @eq:Manning1 and @eq:Manning2 are mathematically equivalent. 
+
+To begin we shall consider 2 different observation scenarios--one overly optimistic and one overly pessimistic, with reality lying somewhere in between the two. 
+
+#### Optimistic case: $A$ is an observed variable
+
+Suppose we have some way of measuring slope, width, and cross-sectional area at a series of locations in a mass-conserved reach. Then, for each time $t$ and location $i$ we can write
+
+$$
+4 \log W_{it} - 3 \log S_{it} - 10 \log A_{it} =  - 6 \log n - 6 \log Q_{t}
+$$
+{#eq:Manning3}
+
+The goal of the inference is to infer the parameters on the right-hand side ($n$ and $Q$) using only the information provided by the observations on the left-hand side. We will see that even in this overly optimistic case ($A$ can never be measured fully via remote-sensing), the parameters cannot be uniquely determined by the observations. 
+
+To simplify the notation, define the following:
+
+- $y_{it} = -\frac{2}{3} \log W_{it} + \frac{1}{2} \log S_{it} + \frac{5}{3} \log A_{it}$,
+- $\tilde{n} = \log n$
+- $q_t = \log Q_t$
+
+Then equation @eq:Manning3 becomes
+
+$$
+y_{it} = \tilde{n} + q_t
+$$
+
+Consider the case where $N_x = N_t = 1$. Then the system of equations is simply $y_{11} = \tilde{n} + q_1$. In matrix notation, this is:
+$$
+\begin{bmatrix}
+y_{11}
+\end{bmatrix}
+
+= 
+
+\begin{bmatrix}
+1 & 1
+\end{bmatrix}
+
+\begin{bmatrix}
+\tilde{n} \\
+q_1
+\end{bmatrix}
+$$
+Since the model matrix, $[1 \space \space 1]$ is not full rank, the parameters are not identifiable. We know the sum of the parameters, but we cannot infer their individual values.
+
+If we increase the number of observation locations to an arbitrarily large number (still within a mass-conserved reach), the model matrix never reaches full rank:
+
+$$
+\begin{bmatrix}
+y_{11} \\
+y_{21} \\
+\vdots \\
+y_{N_x1}
+\end{bmatrix}
+
+= 
+
+\begin{bmatrix}
+1 & 1 \\
+1 & 1 \\
+\vdots & \vdots \\
+1 & 1 \\
+\end{bmatrix}
+
+\begin{bmatrix}
+\tilde{n} \\
+q_1
+\end{bmatrix}
+$$
+
+The model matrix still has rank 1. The only functions of $\tilde{n}$ and $q_1$ we can estimate from the data are of the form $c(\tilde{n} + q_1)$, where $c$ is a constant. Increasing the number of times is of no help either:
+
+$$
+\begin{bmatrix}
+y_{11} \\
+y_{21} \\
+\vdots \\
+y_{N_x1} \\
+y_{12} \\
+y_{22} \\
+\vdots \\
+y_{N_x2} \\
+\vdots \\
+y_{N_x N_t}
+\end{bmatrix}
+
+= 
+
+\begin{bmatrix}
+1 & 1 & 0 & \dots & 0\\
+1 & 1 & 0 & \dots & 0\\
+\vdots & \vdots & \vdots & \ddots & \vdots \\
+1 & 1 & 0 & \dots & 0\\
+1 & 0 & 1 & \dots & 0\\
+1 & 0 & 1 & \dots & 0\\
+\vdots & \vdots & \vdots & \ddots & \vdots \\
+1 & 0 & 1 & \dots & 0\\
+\vdots & \vdots & \vdots & \ddots & \vdots \\
+1 & 0 & 0 & \dots & 1\\
+\end{bmatrix}
+
+\begin{bmatrix}
+\tilde{n} \\
+q_1 \\
+q_2 \\
+\vdots \\
+q_{N_t} \\
+\end{bmatrix}
+$$
+
+This will always be of rank $N_t$, one less than full rank. While this means that $n$ and $Q_t$ cannot be estimated jointly, it also leads to a parameterization that does not suffer from the identifiability problem. We could, for example, define a parameter to represent $\tilde{n} + q_1$ and substitute this in, yielding a full-rank model matrix. However, this is difficult to interpret hydrologically. Instead, consider the following parameterization. Define $\alpha = \tilde{n} + \bar{q}$, where $\bar{q} = \frac{1}{N_t} \sum_{t = 1}^{N_t} q_t$. Then the quantities $\dot{q_t} = q_t - \bar{q}$ and $\alpha$ are identifiable, and the only non-identifiable parameters, $\tilde{n}$ and $\bar{q}$, are time-invariant and interperable in the context of river hydrology. $\tilde{n}$ as described before, is log-transformed Manning's $n$, and $\bar{q}$ is the log-transformed geometric mean of discharge. (Under the assumption that $\log Q$ is symmetrically distributed, $\bar{q}$ is also the log-transformed median discharge). The sum of these non-identifiable parameters, $\alpha$, *is* identifiable, and is equivalent to $\frac{1}{N_x N_t} \sum_{i = 1}^{N_x} \sum_{t = 1}^{N_t} y_{it}$. The other identifiable parameter, $\dot{q_t}$ is the deviance in log-space from $\bar{q}$, and is estimated by $y_{it} - \bar{y}$. It is also the log-transform of flow scaled relative to (geometric) mean flow: $\dot{y}_{it} = \log \frac{Q_t}{exp(\bar{y})}$.
+
+The resulting model,
+$$
+y_{it} = \tilde{n} + \bar{q} + \dot{q}_t + \epsilon_{it}
+$$
+has the familiar form of an analysis of variance (ANOVA) model, either fixed- or random-effects, depending on how it is applied. In one application, $q_t$ may be estimated directly and in tandem with the other parameters. In this context, equation #### is a univariate fixed-effects model, whose estimable parameters are $\alpha = \tilde{n} + \bar{q}$, and $\dot{q}_t$, as described above. However, a more common application of McFLI seeks to estimate the traditional Mannings parameters (only $\tilde{n}$ in equation ####), in order to apply these in future estimates of discharge without further parameter estimation. In this case, equation #### is a random-effects model, and the estimated parameters are the mean and variance of the right-hand side. In either case, $\tilde{n}$ is not an identifiable parameter.
+
+### Model 2: pessimistic case
+
+We noted that the scenario above was overly optimistic--in fact $A_{it}$ is not measureable using satellite observations. What can be measred is $\delta A_{it} = A_{it} - A_{0, i}$, where $A_{0, i}$ is the river cross-sectional area at the time of minimum observed width. This is calculated as follows: TODO. 
+
+Since resulting model is not linear, the linear model theory applied in section #### will be inadequate to assess which of its parameters can be estimated. However, we can put some bounds on what is possible. At best, we can estimate $\alpha$ and $\dot{q}_t$ from the "optimistic" model. At worst, we have the following model:
+
+
+$$
+y_{it} = \tilde{n} + q_t + a_{it}
+$$
+where
+
+- $y_{it} = -\frac{2}{3} \log W_{it} + \frac{1}{2} \log S_{it}$,
+- $a_{it} = -\frac{5}{3} \log A_{it}$
+
+and the other quantities are as described above. With recourse to ANOVA theory, we can estimate the following: 
+
+- $\alpha = \tilde{n} + \bar{q} + \bar{a}_{\cdot \cdot}$ (where $\bar{a}_{\cdot \cdot}$ is the global mean of $a_{it}$ over time and space)
+- $\dot{q_t} = q_t - \bar{q} + \bar{a}_{\cdot t} - \bar{a}_{\cdot \cdot}$ (where $\bar{a}_{\cdot t}$ is the mean over space of $a_{it}$ for each time $t$)
+- $\dot{a}_{it} = a_{it} - \bar{a}_{\cdot t}$
+- $\dot{a}_{i \cdot} = \bar{a}_{i \cdot} - \bar{a}_{\cdot \cdot}$ (where $\bar{a}_{i \cdot}$ is the mean over time of $a_{it}$ for each location $i$)
+- Any linear combination of $\alpha, \dot{q}_t, \dot{a}_{it}, \dot{a}_{i \cdot}$
+
+Clearly this is a less desirable scenario than that described in the optimistic case. Not only are there more parameters to estimate, but the identifiable parameters are more difficult to interpret in the context of river hydrology. Which case--overly optimistic or overly pessimistic--is closer to the truth, and how may this be assessed if not by linear model theory? The answer depends on what information $\delta A_{it}$ contains about $A_{it}$. 

@@ -1,0 +1,28 @@
+---
+title: "Introduction"
+author: "Mark Hagemann"
+date: "November 13, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+The upcoming launch of the Surface Water and Ocean Topography (SWOT) satellite mission has spawned vigorous efforts to develop methods for mapping remotely sensed observations of river geometry to accurate estimates of discharge. Succinctly stated, a major objective has been to estimate discharge (Q) using measurements of stream width (W), slope (S) and height (H) at multiple locations within a stream reach. Multiple methodologies have been put forward and tested, with varying degrees of success. Overall, however, the performance of these methodologies has fallen short of expectations [@Durand2016]. 
+
+The emergent paradigm--termed McFLI for Mass-conserved Flow Law Inversion--relies on two physical constraints: conservation of mass at the reach scale, and hydraulic flow laws such as Manning's equation and At-Many-Stations Hydraulic Geometry (AMHG). As analytic approaches to solving McFLI have not been fruitful, other approaches including hueristic optimization and Bayesian inference have been employed. These have the benefit of yielding estimates of quantities of interest, including discharge and flow-law parameters, but they do so at the expense of obscuring much of the inferential machinery. 
+The purpose of this document is to remove some of the intrigue surrounding Bayesian flow-law inversion and McFLI more generally. In it, I shall address the underlying premise of McFLI--that remote-sensed observations contain sufficient information to infer discharge using such observations alone. This will serve to diagnose many of the shortcomings observed in McFLI performance to date, as well as to perscribe additional data and modeling needs in order for McFLI to reach its full potential.
+
+
+## Orverview of McFLI
+
+McFLI [@Gleason2017] represents a combination of well-established physical equations in a way that is amenible to satellite remote sensing. Given in-situ data, a hydrologist may work out the parameters of, say, Manning's equation that map stream width, slope, and cross-sectional area to velocity or discharge, thereby giving a precisely constrained approximation of hydraulics for that location. Without such in-situ data, the remote-sensing community cannot use such a direct approach, and instead is left with more unknowns than equations and an underconstrained system. However, unlike in-situ gauge data, satellite observations can be made with arbitrarily high spatial resolution, allowing them to be combined via conservation of mass at suitably short (< ~10 km, non-branching) reaches. 
+
+TODO: illustration of the above paragraph using generic McFLI math.
+
+At least on the face of it, this leaves McFLI with only time-invariant and/or space-invariant unknowns; all quantities that are variable in both time and space are observed. If this is the case, then why has discharge retrieval uwing McFLI proven so difficult?
+
+
+
+The remainder of this document is structured as follows. Section #### draws analogues between simplified versions of Manning's McFLI and common analysis of variance (ANOVA) models, and using linear model theory places bounds on what can and cannot be estimated using SWOT observations. Section #### further elucidates the identifiable McFLI parameters using probability, likelihood, and Bayesian theory. Section #### illustrates the estimation of one McFLI parameter, $A_0$, using in-situ measured, model-derived, and synthetic datasets. Finally, section #### concludes with a discussion of these findings along with a prognosis of where they may lead.

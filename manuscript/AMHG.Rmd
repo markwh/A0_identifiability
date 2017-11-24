@@ -1,0 +1,55 @@
+---
+title: "AMHG"
+author: "Mark Hagemann"
+date: "November 16, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+### AMHG
+
+At-many-stations hydraulic geometry [@Gleason2014] can be expressed as:
+
+$$
+\log Q_t = \frac{1}{b_i} (\log W_{it} - \log{W_c}) + \log Q_c
+$$
+{#eq:AMHG1}
+
+Rewritten to isolate the observed variable, $\log W_{it}$, this is:
+
+$$
+\log W_{it} = b_i (\log Q_{t} - \log{Q_c}) + \log W_c
+$$
+
+For simplicity, define the following:
+
+- $y_{it} = \log W_{it}$
+- $\tilde{b}_i = b_i - \bar{b}$
+- $\tilde{q_t} = \log Q_t - E[{\log Q}]$
+- $\tilde{q_c} = \log Q_c - E[{\log Q}]$
+- $\tilde{w}_c = \log W_c$
+- $\gamma_{it} = b_i$
+
+Then, 
+
+$$
+\begin{aligned}
+\tilde{y}_{it} &= b_i (\log Q_{t} - \log{Q_c}) + \log W_c \\ 
+& = b_i (\tilde{q_t} - \tilde{q_c}) + \tilde{w}_c \\ 
+& = (\tilde{b}_i + \bar{b})(\tilde{q_t} - \tilde{q_c}) + \tilde{w}_c \\ 
+& = \gamma_{it} + \alpha_i + \beta_t + \mu \\ 
+\end{aligned}
+$$
+
+where
+
+- $\gamma_{it} = (b_i - \bar{b})(\log Q_t - E[\log Q])$
+- $\alpha_i = (b_i - \bar{b})(\log Q_c - E[{\log Q}])$
+- $\beta_t = $
+
+
+

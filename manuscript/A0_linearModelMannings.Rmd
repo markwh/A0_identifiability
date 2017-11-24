@@ -1,0 +1,171 @@
+---
+title: "Some thoughts on $A_0$, and linear model theory applied to Manning's Equation"
+author: "Mark Hagemann"
+date: "August 3, 2017"
+output:
+  pdf_document: default
+---
+
+
+## Intro
+
+In all of my dealings with McFLI, no parameter has pestered me more than $A_0$. While the log-transformation of Manning's equation maks *almost* everything nice and linear, allowing the data to be separated from the unknown parameters, $A_0$ just won't break away from $\delta A$. I now believe I've found a better way to think about this. 
+
+For multiple cross-sections in a mass-conserved reach, log-transformed Manning's equation states:
+
+$$
+\begin{aligned}
+4 \log W_{it} - 3 \log S_{it}  & = 10 \log A_{it} - 6 \log n - 6 \log Q_t \\
+& = 10 \log (\delta A_{it} + A_{0, i}) - 6 \log n - 6 \log Q_t
+\end{aligned}
+$$
+
+where the index $i$ denotes the cross-section, and $t$ denotes the day. 
+
+## Conceiving of $A_0$
+
+First, it's important to grasp the relationship between $A_0$, $\delta A$, and the *real* cross-sectional area, $A$. If $\delta A$ is defined to be strictly non-negative, then $A_0$ is the *sample minimum* of $A$. Similarly, if we shift $\delta A$ by its maximum value, making it strictly non-positive, then the new $A_0$ is the *sample maximum* of $A$. Neither of these are particularly useful from a statistical standpoint, as they have undesirable properties such as their expected value being dependent on sample size. However, if we instead scale $\delta A$ relative to its *median* value, so that it has exactly as many positive as negative values, then $A_0$ becomes the *sample median* for $A$. This choice of parameters has some auspicious properties, namely: 
+
+1. The expected value of $median(A)$ stable with respect to sample size.
+2. $median(\log A)$ = $\log(median(A))$ = $\log(A_0)$
+3. (Under reasonable assumptions) $median(\log A) = mean(\log A)$ 
+
+The "reasonable assumptions" I mention are simply that the distribution of $\log A$ is symmetric--i.e. not severely skewed. A quick check using the HYDRoSWOT database verifies this assumption (Figures 1 and 2). 
+
+![mean and median log area area; solid line indicates equality.](../../hydroSWOT/graphs/area_mean_median.png)
+
+Here's one showing the distribution of relative difference between mean and median:
+
+![Relative difference between mean and median log area from HYDRoSWOT database.](../../hydroSWOT/graphs/area_relative_difference_mean_median.png)
+
+The assumption that $median(\log A) \approx mean(\log A)$ thus appears to be valid for the vast majority of stations in the HYDRoSWOT databse.
+
+## Theory - ANOVA and Manning's parameters
+
+Now that the desired parameter $A_0$ can be expressed as a *mean* in log space, statistical inference (including the Bayesian inference used in BAM) becomes simpler.
+
+For now, I'll step out of the Bayesian statistical realm and into that of classical statistics. Here, parameters are unknown, fixed (not random) quantities and priors do not exist. One classical model is a two-factor analysis-of-variance (ANOVA) model, which has the form:
+
+$$
+y_{ij} = \mu + \alpha_i + \beta_j + \gamma_{ij} + \epsilon_{ij}
+$$
+
+where $y_it$ are observations; $\mu$, $\alpha_i$, $\beta_j$, and $\gamma_{ij}$ are parameters to be estimated, and $\epsilon_{ij}$ is random error. The formulation of Manning's equation used by BAM already looks similar to this model:
+
+$$
+4 \log W_{it} - 3 \log S_{it}  = 10 \log (\delta A_{it} + A_{0, i}) - 6 \log n - 6 \log Q_t
+$$
+
+In fact, we can get the rest of the way there with a Taylor expansion of $\log(A_{0, i} + \delta A_{it})$. Taylor says that:
+
+$$
+\log(A_{0, i} + \delta A_{it}) =  log(A_{0, i}) + \sum_{k = 1}^\infty (-1)^{k - 1} \frac{1}{k!}\Big(\frac{\delta A_{it}}{A_{0, i}}\Big)^k
+$$
+
+Note that the first term on the RHS is indexed in $i$ only (like $\alpha$ in the ANOVA model), and the second term is indexed in both $i$ and $t$ (like $\gamma$ from ANOVA). 
+Thus, we can write:
+
+$$
+y_{it} = 4 \log W_{it} - 3 \log S_{it}  = - 6 \log n + 10 \log A_{0, i} - 6 \log Q_t + \dot{\delta}_{it}
+$$
+
+where:
+
+- $\dot{\delta}_{it} = 10 \sum_{k = 1}^\infty (-1)^{k - 1} \frac{1}{k!} \Big(\frac{\delta A_{it}}{A_{0, i}}\Big)^k$
+
+Using this equation, we can use linear model theory to say something about the ability of each parameter on the RHS to be estimated, using the data on the LHS. 
+
+The important concept is *identifiability*. In order to be identifiable, the parameters $\log A_{0, i}, \log Q_t$, and $\gamma_{it}$ must all sum to zero over their respective indices. $\gamma_{it}$ does, since it's already the distance from mean area, but the others don't. So in order to obtain identifiable parameters, they must first be scaled by subtracting their mean. We can write:
+
+- $10 \log A_{0, i} = \dot{a} = \mu_a + \tilde{a}$, where $\mu_a$ is the global mean (over time and space) log-transformed area.
+- $-6 \log Q_{t} = \dot{q} = \mu_q + \delta_Q$, where $\mu_q$ is mean log-transformed discharge for the reach.
+- $\dot{n} = -6 \log n$
+
+Rewritten, we have the following model:
+
+$$
+y_{it} = 4 \log W_{it} - 3 \log S_{it}  = (\dot{n} + \mu_a + \mu_q) + \tilde{a}_i + \tilde{q}_t + \gamma_{it}
+$$
+Here we have an ANOVA, where the following parameters can be estimated:
+
+- $\mu = - \log n + 10 \mu_{a} - 6 \mu_q$
+- $\alpha_i = 10 \delta_{A, i}$
+- $\beta_t = -6 \delta_{Q,t}$
+- $\gamma_{it} = 10 \sum_{k = 1}^\infty (-1)^{k - 1} \frac{1}{k!} \Big(\frac{\delta A_{it}}{A_{0, i}}\Big)^k$
+
+The upshot of this is that $Q_t$ and $A_{0,i}$ can only be estimated to a proportionality, since it is impossible to separate $\mu_{a}$ or $\mu_q$ from the sum in parentheses. It is for the same reason impossible to estimate Manning's $n$. 
+
+
+Without the Taylor series, the model is:
+
+$$
+\begin{aligned}
+y_{it} &= (- 6 \log n - 6 \mu_q) + (\mu_a + \alpha_{i} + \gamma_{it}) - 6 \delta_{Q, t} \\
+&= (- 6 \log n - 6 \mu_q) + 10 \log (A_{0,i} + \delta A_{it}) - 6 \delta_{Q, t} \\
+\end{aligned}
+$$
+
+## A possible means of estimating $A_{0, i}$
+
+*If* $\delta A$ is sufficiently close to $A_0$ that the Taylor series can be reduced to a linear approximation (note: I'm not at all convinced that this would be the case), then a simple way to estimate $A_0$ would be:
+
+$$
+\hat{A}_{0,i} = \frac{1}{n_t}\sum_{t = 1}^{n_t}\frac{\delta A_{it}}{\hat{\gamma}_{it}}
+$$
+
+However, so-called *interaction terms* such as $\gamma_{it}$ have large error bars compared to *main effects* that only have a single index. Since $\delta A_{it}$ is measured, though, the averaging in this estimation might sufficiently smooth out this variability to make it a reasonable proposition. I have some simulation work to do to investigate. 
+
+
+
+## Futher motivation behind using the median as $A_0$
+
+In order to use $\delta A$ in Bayesian inference, we must be able to formally write its probability distribution--specifically its conditional distribution given unknown parameters of interest. Herein I will derive that distribution and show why this leads to the median as a fortuitous choice for $A_0$. 
+
+
+We start with the assumption that $A$ is log-normally distributed. This arises from the same distributional assumption on $Q$, and may be considered the most fundamental of BAM's assumptions. Let $\mu_A$ and $\sigma_A$ be the parameters of $A$'s distribution. 
+
+The pdf of $A$ is then:
+
+$$
+f_A(x) = \frac{1}{x \sqrt{2 \pi} \sigma_A} \exp{\big(-\frac{1}{2 \sigma_A^2}[\log x - \mu_A]^2\big)}
+$$
+
+Changing variables to $\delta A = A - A_0$, we obtain the following distribution for $\delta A$:
+
+
+$$
+f_{\delta A}(x) = \frac{1}{(x + A_0) \sqrt{2 \pi} \sigma_A} \exp{\big(-\frac{1}{2 \sigma_A^2}[\log (x + A_0) - \mu_A]^2\big)}
+$$
+
+This gives a likelihood function with 3 quantities of interest: $A_0$, $\mu_A$, and $\sigma_A$. However, recall that we can choose $A_0$ to be *any time-invariant quantity*. Further, $\mu_A$ is the median of $\log A$, implying that $e^{\mu_a}$ is the median of $A$. Thus if we choose $\mu_A = A_0$, we can effectively reduce the number of parameters in the above likelihood by 1, yielding: 
+
+$$
+f_{\delta A | \sigma_A, A_0}(x |  \sigma_A, A_0) = \frac{1}{(x + A_0) \sqrt{2 \pi} \sigma_A} \exp{\big(-\frac{1}{2 \sigma_A^2}[\log (x + A_0) - \log A_0]^2\big)}, (x > -A_0)
+$$
+
+Inference for $\sigma_A$ and $A_0$ is conducted via the log-likelihood:
+
+$$
+\ell(\sigma_A, A_0) = \sum_{i = 1}^{N_t} \Big(- \log {(x_i + A_0)} -  \frac{1}{2} \log{\sigma_A^2} - \frac{1}{2 \sigma_A^2}[\log (x_i + A_0) - \log A_0]^2 \Big)
+$$
+
+
+
+For instance, we can find the maximum likelihood estimates of these parameters via differentiation:
+
+
+$$
+\begin{aligned}
+\frac{\partial \ell}{\partial A_0} &= \sum_{i = 1}^{N_t} \Big( -\frac{1}{x_i + A_0}  - \frac{1}{ \sigma_A^2}[\log (x_i + A_0) - \log A_0](\frac{1}{x_i + A_0} - \frac{1}{A_0}) \Big) \\
+&= \sum_{i = 1}^{N_t} \Big(  \frac{x_i \log A_0 - \sigma^2_A A_0 - x_i\log (x_i + A_0) }{\sigma_{A}^2A_0 (x_i + A_0)} \Big) \\
+&=  \sum_{i = 1}^{N_t} \Big(  \frac{x_i \log A_0}{\sigma_{A}^2A_0 (x_i + A_0)} - 
+\frac{ \sigma^2_A A_0}{\sigma_{A}^2A_0 (x_i + A_0)} - 
+\frac{ x_i\log (x_i + A_0) }{\sigma_{A}^2A_0 (x_i + A_0)} \Big)\\
+&= \sum_{i = 1}^{N_t}   \frac{x_i \log A_0}{\sigma_{A}^2A_0 (x_i + A_0)} - 
+ \sum_{i = 1}^{N_t} \frac{ 1}{ x_i + A_0} - 
+ \sum_{i = 1}^{N_t} \frac{ x_i\log (x_i + A_0) }{\sigma_{A}^2A_0 (x_i + A_0)} \\
+\end{aligned}
+$$
+
+
+This is proving intractable to maximize analytically. 

@@ -1,0 +1,191 @@
+---
+title: "2017-07-24 Notebook"
+output: pdf_document
+---
+
+
+## Some thoughts on $A_0$, and linear model theory applied to BAM Manning's
+
+In all of my dealings with McFLI, no parameter has pestered me more than $A_0$. While the log-transformation of Manning's equation maks *almost* everything nice and linear, allowing the data to be separated from the unknown parameters, $A_0$ just won't break away from $\delta A$. I now believe I've found a better way to think about this. 
+
+For multiple cross-sections in a mass-conserved reach, log-transformed Manning's equation states:
+
+$$
+\begin{aligned}
+4 \log W_{it} - 3 \log S_{it}  & = 10 \log A_{it} - 6 \log n - 6 \log Q_t \\
+& = 10 \log (\delta A_{it} + A_{0, i}) - 6 \log n - 6 \log Q_t
+\end{aligned}
+$$
+
+where the index $i$ denotes the cross-section, and $t$ denotes the day. 
+
+
+First, it's important to grasp the relationship between $A_0$, $\delta A$, and the *real* cross-sectional area, $A$. If $\delta A$ is defined to be strictly non-negative, then $A_0$ is the *sample minimum* of $A$. Similarly, if we shift $\delta A$ by its maximum value, making it strictly non-positive, then the new $A_0$ is the *sample maximum* of $A$. Neither of these are particularly useful from a statistical standpoint, as they have undesirable properties such as their expected value being dependent on sample size. However, if we instead scale $\delta A$ relative to its *median* value, so that it has exactly as many positive as negative values, then $A_0$ becomes the *sample median* for $A$. This choice of parameters has some auspicious properties, namely: 
+
+1. The expected value of $median(A)$ stable with respect to sample size.
+2. $Median(\log A)$ = $\log(median(A))$ = $\log(A_0)$
+3. (Under reasonable assumptions) $median(\log A) = mean(\log A)$ 
+
+The "reasonable assumptions" I mention are simply that the distribution of $\log A$ is symmetric--i.e. not severely skewed. A quick check using the HYDRoSWOT database verifies this assumption:
+
+![](../../hydroSWOT/graphs/area_mean_median.png)
+
+Here's one showing the distribution of relative difference between mean and median:
+
+![](../../hydroSWOT/graphs/area_relative_difference_mean_median.png)
+
+The assumption that $median(\log A) \approx mean(\log A)$ thus appears to be valid for the vast majority of stations in the HYDRoSWOT databse.
+
+## Theory - ANOVA
+
+Now that the desired parameter $A_0$ can be expressed as a *mean* in log space, statistical inference (including the Bayesian inference used in BAM) becomes simpler.
+
+For now, I'll step out of the Bayesian statistical realm and into that of classical statistics. Here, parameters are unknown, fixed (not random) quantities and priors do not exist. One classical model is a two-factor analysis-of-variance (ANOVA) model, which has the form:
+
+$$
+y_{ij} = \mu + \alpha_i + \beta_j + \gamma_{ij} + \epsilon_{ij}
+$$
+
+where $y_it$ are observations; $\mu$, $\alpha_i$, $\beta_j$, and $\gamma_{ij}$ are parameters to be estimated, and $\epsilon_{ij}$ is random error. The formulation of Manning's equation used by BAM already looks similar to this model:
+
+$$
+4 \log W_{it} - 3 \log S_{it}  = 10 \log (\delta A_{it} + A_{0, i}) - 6 \log n - 6 \log Q_t
+$$
+
+In fact, we can get the rest of the way there with a Taylor expansion of $\log(A_{0, i} + \delta A_{it}). Taylor says that:
+
+$$
+\log(A_{0, i} + \delta A_{it}) =  log(A_{0, i}) + \sum_{k = 1}^\infty (-1)^{k - 1} \frac{1}{k!}\Big(\frac{\delta A_{it}}{A_{0, i}}\Big)^k
+$$
+
+Note that the first term on the RHS is indexed in $i$ only (like $\alpha$ in the ANOVA model), and the second term is indexed in both $i$ and $t$ (like $\gamma$ from ANOVA). 
+Thus, we can write:
+
+$$
+y_{it} = 4 \log W_{it} - 3 \log S_{it}  = - 6 \log n + 10 \log A_{0, i} - 6 \log Q_t + \gamma_{it}
+$$
+
+where:
+
+- $\gamma_{it} = \sum_{j = 1}^\infty (-1)^{j - 1} \frac{\delta A_{it}^j}{A_{0, i}^j}$
+
+Using this equation, we can use linear model theory to say something about the ability of each parameter on the RHS to be estimated, using the data on the LHS. 
+
+The important concept is *identifiability*. In order to be identifiable, the parameters $\log A_{0, i}, \log Q_t$, and $\gamma_{it}$ must all sum to zero over their respective indices. $\gamma_{it}$ does, since it's already the distance from mean area, but the others don't. So in order to obtain identifiable parameters, they must first be scaled by subtracting their mean. We can write:
+
+- $\log A_{0, i} = \mu_A + \delta_A$, where $\mu_A$ is the global mean (over time and space) log-transformed area.
+- $\log Q_{t} = \mu_Q + \delta_Q$, where $\mu_Q$ is mean log-transformed discharge for the reach.
+
+Rewritten, we have the following model:
+
+$$
+y_{it} = 4 \log W_{it} - 3 \log S_{it}  = (- 6 \log n + 10 \mu_A - 6 \mu_Q) + 10 \delta_{A, i} - 6 \delta_{Q, t} + \gamma_{it}
+$$
+Here we have an ANOVA, where the following parameters can be estimated:
+
+- $\mu = - \log n + 10 \mu_{A} - 6 \mu_Q$
+- $\alpha_i = 10 \delta_{A, i}$
+- $\beta_t = -6 \delta_{Q,t}$
+- $\gamma_{it} = \sum_{j = 1}^\infty (-1)^{j - 1} \frac{\delta A_{it}^j}{A_{0, i}^j}$
+
+The upshot of this is that $Q_t$ and $A_{0,i}$ can only be estimated to a proportionality, since it is impossible to separate $\mu_{A}$ or $\mu_Q$ from the sum in parentheses. It is for the same reason impossible to estimate Manning's $n$. 
+
+## A possible means of estimating $A_{0, i}$
+
+*If* $\delta A$ is sufficiently close to $A_0$ that the Taylor series can be reduced to a linear approximation (note: I'm not at all convinced that this would be the case), then a simple way to estimate $A_0$ would be:
+
+$$
+\hat{A}_{0,i} = \frac{1}{n_t}\sum_{t = 1}^{n_t}\frac{\delta A_{it}}{\hat{\gamma}_{it}}
+$$
+
+However, so-called *interaction terms* such as $\gamma_{it}$ have large error bars compared to *main effects* that only have a single index. Since $\delta A_{it}$ is measured, though, the averaging in this estimation might sufficiently smooth out this variability to make it a reasonable proposition. I have some simulation work to do to investigate. 
+
+## Motivation
+
+The bulk of my work with SWOT/DAWG has been in reformulating McFli using statistical theory. This has resulted in a new discharge algorithm (BAM) that uses Bayesian inference to estimate hydraulic parameters. The idea to use Bayes predates my tenure with DAWG, and arose from the impossibility of calculating parameters such as Manning's n and base area ($A_0$) directly. Here I offer some further notes on what statistical theory can say about this problem, and how Bayesian inference sidesteps the problem.
+
+## SWOT & Manning's equation as a linear model
+
+
+
+## Theory - identifiable parameters
+
+n classical model theory there is a concept known as *identifiability* which dictates which 
+
+
+## Resulting insights
+
+Thinking about framing BAM in an ANOVA setting. There are two versions of this:
+
+Manning:
+
+$$
+4 \log W_{it} - 3 \log S_{it}  = 10 \log (\delta A_{it} + A_{0, i}) - 6 \log n - 6 \log Q_t
+$$
+
+The goal is to get this into a form familiar to ANOVA: 
+
+$$
+y_{it} = \mu + \alpha_i + \beta_t + \gamma_{it} + \epsilon_{it}
+$$
+Already, we're close. Some key assumptions and features of the ANOVA model must be adhered to. Namely: 
+
+- $\alpha_i$, $\beta_t$, and $\gamma_{it}$ all have mean zero (sum-to-zero constrained). If not, they are not *identifiable*. If we treat $A_0$ as the *median* area and $\delta A_{it}$ as the distance from the median area, then we have the nice feature that $E[\log(A_0)] = E[\log(A)]$ under the reasonable assumption that $\log(A)$ is symmetrically distributed.
+
+$$
+4 \log W_{it} - 3 \log S_{it}  = 10 \log (A_{0, i} + \delta A_{it}) - 6 \log n - 6 (\mu_q + \delta q_t)
+$$
+
+Next we can use a Taylor series to (somewhat) split out $A_{0,i}$ from $\delta A_{it}$:
+
+$$
+\log(A_{0, i} + \delta A_{it}) =  log(A_{0, i}) + \sum_{j = 1}^\infty (-1)^{j - 1} \frac{\delta A_{it}^j}{A_{0, i}^j}
+$$
+
+The first term on the RHS is indexed in $i$ only, and the second term is indexed in both $i$ and $t$. However, if the first term is known, then the second term is also known, and vice versa, since $\delta A_{it}$ is a measured variable. However, the first term does not sum to zero over the index $i$, although the second term *does* sum to zero over the double index $it$, under the assumption that $E[\log(A_{0,i})] = E[\log(A_{it})]$. Thus, using lowercase variables to represent log-transformed uppercase variables, we can write:
+
+$$
+y_{it} = 4 w_{it} - 3 s_{it}  = 10 (\mu_{a_0} + \delta a_{0,i}) + \gamma_{it} - 6 n - 6 (\mu_q + \delta q_t)
+$$
+
+Here we have an ANOVA, where:
+
+- $\mu = 10 \mu_{a_0} - 6n - 6 \mu_q$
+- $\alpha_i = 10 \delta a_{0, i}$
+- $\beta_t = -6 \delta q_t$
+- $\gamma_{it} = \sum_{j = 1}^\infty (-1)^{j - 1} \frac{\delta A_{it}^j}{A_{0, i}^j}$
+
+This hints at exactly what can be estimated via remote-sensed data in a BAM framework. Namely, we can estimate:
+
+- $A_{0,i}$, to a proportionality
+    - ***but*** can be estimated from $\gamma_{it}$, given it can be approximated linearly (more on that later)
+- $Q_{t}$, to a proporionality
+
+Two things are not clear to me at this point. 
+
+1. How well (if at all) can $\gamma_{it}$ be estimated, if there is an additional error term, $\epsilon_{it}$ present?
+2. Assuming $\gamma_{it}$ *can* be estimated, is it possible to back out $A_{0, i}$ 
+    - Under linear approximation of $\log(A)$? (I'm fairly certain it can)
+    - Under quadratic, cubic, etc. approximation of $\log(A)$?
+
+### Getting $A_{0, i}$ from linear approximation of $\log A$
+
+Given an estimate of $\gamma_{it}$, $\hat{\gamma_{it}}$, estimate $\log A_{0, i}$ as follows:
+
+$$
+\begin{aligned}
+\gamma_{it} &= \sum_{j = 1}^\infty (-1)^{j - 1} \frac{\delta A_{it}^j}{A_{0, i}^j} \\
+& \approx  \frac{\delta A_{it}}{A_{0, i}} \\
+
+\implies \hat{A}_{0,i} &= \frac{\delta A_{it}}{\hat{\gamma}_{it}} \\
+\end{aligned}
+$$
+
+If for each cross-section, I restrict the above calculation to use only values of $\delta A_{it}$ near the median (say, nothing greater than $2 * median(\delta A_{it}) - \min(\delta A_{it})$, then the linear approximation *should* be reasonable (but **I will need to check this further**).
+
+
+
+However, if the first term is known, then the second term is also known, since $\delta A_{it}$ is a measured variable. 
+
+However, the first term does not sum to zero over the index $i$, although the second term *does* sum to zero over the double index $it$, under the assumption that $E[\log(A_{0,i})] = E[\log(A_{it})]$. 
+
