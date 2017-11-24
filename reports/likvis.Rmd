@@ -1,0 +1,420 @@
+---
+title: "likvis"
+author: "Mark Hagemann"
+date: "November 14, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Herein I will make a visualization for likelihood and posterior given a particular set of data, likelihood function, and prior. And because it happens to be the case for the situation I'm dealing with, I'll make it dependent on 2 parameters.
+
+First, a function factory that gives the posterior for a given set of data.
+
+```{r}
+logPost <- function(datavec, muhat, sigmahat, sigmasd) {
+  logPrior <- function(logA0, sigma_logA) {
+    # Change this for different applications
+    
+    out_mu <- dnorm(logA0, muhat, sigma_logA, log = TRUE)
+    out_sigma <- dnorm(sigma_logA, sigmahat, sigmasd, log = TRUE)
+    
+    out_mu + out_sigma
+    # end changes
+  }
+  
+  # Prior gradient
+  gradPrior <- function(logA0, sigma_logA) {
+    dlogA0 <- - sigma_logA^(-2) * (logA0 - muhat)
+    dsigma <- - sigma_logA^(-1) + sigma_logA^(-3) * (logA0 - muhat)^2 - 
+      sigmasd^(-2) * (sigma_logA - sigmahat)
+    out <- c(dlogA0, dsigma)
+    out
+  }
+  
+  if (length(data) == 0)
+    return(logPrior)
+  
+  loglikvec <- function(logA0, sigma_logA) {
+    # Need to redo likelihood with logA0 instead of A0. 
+    # And with sigma instead of sigmasquared.
+    if (sigma_logA <= 0 | min(datavec + exp(logA0)) <= 0) return(datavec - Inf)
+    
+    - log(datavec + exp(logA0)) -  # This bit because of jacobian for dA
+      log(sigma_logA) -
+      1 / (2 * sigma_logA^2) * (log(datavec + exp(logA0)) - logA0)^2
+  }
+  
+  out <- function(params, cumulative = FALSE) {
+    logA0 <- params[1]
+    sigma_logA <- params[2]
+    llvec <- loglikvec(logA0, sigma_logA)
+    if (cumulative) {
+      llpiece <- cumsum(llvec)
+    } else {
+      llpiece <- sum(llvec)
+    }
+    -(logPrior(logA0, sigma_logA) + llpiece)
+  }
+  
+  attr(out, "gradient") <- function(params, cumulative = FALSE) {
+    logA0 <- params[1]
+    sigma_logA <- params[2]
+    
+    priorgrad <- gradPrior(logA0 = logA0, sigma_logA = sigma_logA)
+    
+    dlogA0vec <- - sigma_logA^(-2) * (log(datavec + exp(logA0)) - logA0) *
+      (exp(logA0) / (datavec + exp(logA0)) - 1) - 
+      (exp(logA0) / (datavec + exp(logA0)))
+    dsigmavec <- - sigma_logA^(-1) + 
+      sigma_logA^(-3) * (log(datavec + exp(logA0)) - logA0)^2
+    
+    out <- - c(priorgrad + c(sum(dlogA0vec), sum(dsigmavec)))
+    out
+  }
+  
+  out
+}
+```
+
+Test this on synthetic data. Use xs with most data.
+
+```{r}
+userow <- which.max(test_smry$n)
+test_smry[userow, ]
+real_A0 <- test_smry$A0[userow]
+real_sigmalogA <- test_smry$logA_sd[userow]
+
+obs <- test_full$dA[test_full$xs == test_smry[userow, ][["xs"]]]
+dates <- test_full$datetime[test_full$xs == test_smry[userow, ][["xs"]]]
+priors <- stanPriorList[[userow]]
+
+```
+
+Make a parameter grid over which to calculate likelihood
+
+```{r}
+
+plot_logA0 <- seq(from = log(-min(obs) + 1), 
+                  to = log(real_A0 * 10), length.out = 100)
+plot_sigmalogA <- real_sigmalogA * 10^seq(-2, 5, length.out = 100)
+
+# Now shift these by 1 to get upper bound for each parameter grid cell. 
+psla_shift <- plot_sigmalogA[c(2:length(plot_sigmalogA), length(plot_sigmalogA))]
+pla0_shift <- plot_logA0[c(2:length(plot_sigmalogA), length(plot_sigmalogA))]
+
+plotparams <- data.frame(logA0 = rep(plot_logA0, length.out = 100),
+                         sigmalogA = rep(plot_sigmalogA, each = 100),
+                         max_la0 = rep(pla0_shift, 100),
+                         max_slA = rep(psla_shift, each = 100))
+
+
+
+ndat <- length(obs)
+logposter <- logPost(datavec = obs[1:ndat], muhat = priors[["logA0_hat"]],
+                     sigmahat = priors$sigmalogA_hat, sigmasd = priors$sigmalogA_sd)
+
+
+df_2d <- plotparams %>% 
+  mutate(logpost = map_dbl(map2(logA0, sigmalogA, c), logposter),
+         lp_adj = log(logpost - min(logpost) + 1),
+         minx = logA0, maxx = max_la0,
+         miny = sigmalogA, maxy = max_slA,
+         lp_cut = cut(logpost, breaks = 20))
+
+
+
+
+df_hats <- df_2d %>% 
+  filter(logpost == min(logpost))
+
+df_dens <- tibble(dA = obs[1:ndat])
+
+ggplot(df_2d, aes(x = logA0, y = sigmalogA)) +
+  geom_rect(aes(fill = lp_adj, xmin = minx, xmax = maxx,
+                ymin = miny, ymax = maxy)) +
+  geom_contour(aes(z = lp_adj), color = "gray80") +
+  scale_y_log10() + 
+  scale_fill_continuous(type = "viridis") + 
+  annotation_logticks(sides = "l") +
+  geom_point(data = data.frame(x = log(real_A0), y = real_sigmalogA),
+             aes(x = x, y = y), size = 5) +
+  geom_point(data = df_hats, size = 3, shape = 21, color = "gray") 
+
+densfun <- function(x, logmean, logsd) {
+  xadj <- x + exp(logmean)
+  out0 <- dlnorm(x = xadj, meanlog = logmean, sdlog = logsd)
+  out <- out0 / max(out0)
+  out
+}
+ggplot(df_dens) + 
+  geom_histogram(aes(x = dA, y = ..ncount..), bins = 30) +
+  # geom_density(aes(x = dA, y = ..scaled..)) +
+  xlim(min(obs), max(obs)) +
+  stat_function(fun = densfun, 
+                args = c(logmean = df_hats$logA0[1], logsd = df_hats$sigmalogA[1]))
+```
+
+Try an animation. Also memoise might come in handy here. 
+
+```{r}
+accumllik <- with(plotparams, 
+                  map(map2(logA0, sigmalogA, c), logposter, cumulative = TRUE)) %>% 
+  as.data.frame() %>% 
+  t() %>% 
+  as.data.frame() %>% 
+  setNames(1:ndat)
+
+# stats4::mle()
+
+df_3d <- plotparams %>% 
+  mutate(minx = logA0, maxx = max_la0,
+         miny = sigmalogA, maxy = max_slA,) %>% 
+  cbind(accumllik) %>% 
+  gather(key = "obs", value = "logpost", -logA0:-maxy) %>% 
+  mutate(obs = as.integer(obs)) %>% 
+  group_by(obs) %>% 
+  mutate(lp_adj = log(logpost - min(logpost) + 1),
+         logA0_hat = logA0[which.min(lp_adj)],
+         sigmalogA_hat = sigmalogA[which.min(lp_adj)]) %>% 
+  ungroup() %>% 
+  mutate(real_logA0 = log(real_A0),
+         real_sigmalogA = real_sigmalogA)
+
+anim1_gg <- df_3d %>% 
+  ggplot(aes(x = logA0, y = sigmalogA, z = lp_adj, group = obs, frame = obs)) +
+  geom_rect(aes(fill = lp_adj, xmin = minx, xmax = maxx,
+                ymin = miny, ymax = maxy)) +
+  geom_contour(color = "gray80") +
+  scale_y_log10() + 
+  scale_fill_continuous(type = "viridis") + 
+  annotation_logticks(sides = "l") +
+  geom_point(aes(x = real_logA0, y = real_sigmalogA), size = 5) +
+  geom_point(aes(x = logA0_hat, y = sigmalogA_hat), 
+             size = 3, shape = 21, color = "gray") +
+  theme_bw()
+```
+
+
+Make sure to do this in a remote.
+
+
+```{r}
+library(future)
+library(gganimate)
+# plan(remote, workers = "35.196.4.106")
+options(future.globals.maxSize= 891289600)
+
+anim1 %<-% gganimate(anim1_gg, filename = "llik.gif", interval = 0.2)
+
+
+```
+
+
+![](../llik.gif)
+
+
+I'm pleased with this. Next try an animation for the histogram. For this I need:
+
+- list of MLE's--one for each observation. 
+- 
+
+List of MLE's
+
+```{r}
+datavecs <- 1:length(obs) %>% 
+  map(~1:.) %>% 
+  map(~obs[.])
+
+logPosts <- map(datavecs, logPost, muhat = priors[["logA0_hat"]],
+                sigmahat = priors$sigmalogA_hat, sigmasd = priors$sigmalogA_sd)
+
+attr(logPosts[[1]], "gradient")(c(7, 0.4))
+attr(logPosts[[1]], "gradient")(c(8, 1))
+
+
+mle1 <- nlm(logPosts[[1]], p = c(priors$logA0_hat, priors$sigmalogA_hat))
+
+
+```
+
+The reported gradients don't make sense. Check them against my analytical version. 
+
+```{r}
+est1 <- c(6.43728087, 0.03096022)
+
+(logPosts[[1]](est1 + c(0.0000001, 0)) - logPosts[[1]](est1)) / 0.0000001
+(logPosts[[1]](est1 + c(0, 0.0000001)) - logPosts[[1]](est1)) / 0.0000001
+
+attr(logPosts[[1]], "gradient")(est1)
+
+```
+
+Found the math error. Forgot to square a sigma!
+
+```{r}
+mynlm <- function(...) suppressWarnings(nlm(...))
+
+mles <- logPosts %>%
+  map(mynlm, p = c(priors$logA0_hat + 1, priors$sigmalogA_hat / 5)) %>% 
+  map(~data.frame(logA0 = .$estimate[1], sigmalogA = .$estimate[2])) %>% 
+  setNames(1:length(obs)) %>% 
+  bind_rows(.id = "nobs") %>% 
+  mutate(nobs = as.numeric(nobs))
+
+head(mles, 10)
+
+# foo <- mynlm(logPosts[[7]], p = c(priors$logA0_hat + 3, priors$sigmalogA_hat + 3), print.level = 2)
+
+```
+
+How do these look?
+
+```{r}
+mles %>% 
+  arrange(nobs) %>% 
+  # filter(nobs %% 10 == 1) %>% 
+  # filter(nobs < 50) %>% 
+  glimpse() %>% 
+  ggplot(aes(x = logA0, y = sigmalogA, color = nobs, fill = nobs)) +
+  geom_point() + 
+  geom_path() +
+  scale_color_gradient(low = "red", high = "darkblue", limits = c(1, 621)) + 
+  scale_fill_gradient(low = "red", high = "darkblue", limits = c(1, 621))
+
+```
+
+
+```{r}
+library(future)
+library(gganimate)
+# plan(remote, workers = "35.196.33.137")
+options(future.globals.maxSize= 891289600)
+
+
+anim2gg <- mles %>% 
+  ggplot(aes(x = logA0, y = sigmalogA, frame = nobs)) +
+  geom_point() + 
+  theme_bw()
+anim2gg
+
+anim2 %<-% gganimate(anim2gg, filename = "maxlik.gif", interval = 0.2) 
+
+```
+
+![](../maxlik.gif)
+
+
+Huh, it goes well for a while then gets sucked into a weird local minimum? I need to change the starting values and see how it affects the optimum. Update: It does. Try inflating starting values. That works. 
+
+
+Next make that animation. 
+
+```{r}
+head(mles)
+
+ndat <- length(datavecs)
+# ndat <- 30
+
+animdf_hist <- datavecs[1:ndat] %>% 
+  map(~data.frame(dA = ., nobs = length(.))) %>% 
+  bind_rows() %>% 
+  left_join(mles, by = "nobs") %>% 
+  group_by(nobs) %>% 
+  mutate(obsnum = 1:n(), 
+         size0 = obsnum - nobs + 4,
+         size = ifelse(size0 < 1, 1, size0 * 2)) %>% 
+  ungroup() %>% 
+  # select(-obsnum) %>% 
+  mutate(nobs = as.factor(nobs))
+
+
+head(animdf_hist)
+xmin <- min(obs); xmax <- max(obs)
+densfun <- function(x, logmean, logsd) {
+  xadj <- x + exp(logmean)
+  out0 <- dlnorm(x = xadj, meanlog = logmean, sdlog = logsd)
+  out <- out0 / max(out0)
+  out
+}
+densdf <- 1:ndat %>% 
+  map(~tibble(x = seq(xmin, xmax, length.out = 1000), nobs = .)) %>% 
+  bind_rows() %>% 
+  left_join(mles, by = "nobs") %>% 
+  glimpse() %>% 
+  group_by(nobs) %>% 
+  mutate(y = densfun(x = x, logmean = logA0, logsd = sigmalogA)) %>% 
+  ungroup() %>% 
+  mutate(nobs = as.factor(nobs))
+  
+
+anim3_gg <- animdf_hist %>% 
+  # filter(nobs == 222) %>%
+  ggplot(aes(x = dA, y = ..ncount.., frame = nobs)) +
+  geom_histogram(aes(frame = nobs, group = nobs), fill = "gray30", 
+                 alpha = 1, bins = 30, position = "identity") +
+  geom_point(aes(y = 0, alpha = size * 0.075, size = size), 
+                 shape = 21, fill = "white", color = "red") +
+  scale_alpha_identity() +
+  # scale_shape_manual(values = c(21, 1)) +
+  # geom_rug() +
+  xlim(xmin, xmax) + 
+  geom_line(data = densdf, aes(x = x, y = y, group = nobs, frame = nobs)) +
+  # stat_function(aes(args = c(logmean = logA0[1], logsd = sigmalogA[1])), fun = densfun) +
+  theme_bw() +
+  guides(alpha = "none", shape = "none", size = "none") +
+  ylab("scaled count / scaled density") +
+  scale_y_continuous(breaks = NULL) +
+  coord_flip()
+  
+
+# anim3_gg
+plan(remote, workers = "35.185.96.133")
+anim3 %<-%  gganimate(anim3_gg, filename = "maxlik_hist.gif", interval = 0.2)
+
+```
+
+![](../maxlik_hist.gif)
+
+YES! ***position = "identity" when using y = ..ncount..***
+
+
+Next: how closely do estimates match actual areas as nobs increases?
+
+
+
+```{r}
+area1est <- obs[1] + exp(mles$logA0)
+
+plot(area1est, ylim = c(0, 1000))
+abline(h = obs[1] + real_A0)
+
+obs[1] - min(obs)
+
+```
+
+
+Next: an animated timeseries.
+
+```{r}
+
+animdf_ts <- animdf_hist %>% 
+  filter(nobs == max(nobs))
+
+animdf_hist %>% 
+  filter(nobs = max(nobs)) %>% 
+  ggplot(aes(x = date, y = dA)) +
+  geom_point(aes(alpha = size * 0.075, size = size), 
+                 shape = 21, fill = "white", color = "red")
+
+tsanim_gg <- test_full %>% 
+  filter(xs == test_smry[userow, ][["xs"]]) %>% 
+  glimpse() %>% 
+  ggplot(aes(x = datetime), y = dA)
+```
+
+
+
+
