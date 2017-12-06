@@ -79,17 +79,25 @@ logPost <- function(datavec, muhat, sigmahat, sigmasd) {
 }
 ```
 
-Test this on synthetic data. Use xs with most data.
+Test this on actual data. Use xs with most data.
 
 ```{r}
-userow <- which.max(test_smry$n)
-test_smry[userow, ]
-real_A0 <- test_smry$A0[userow]
-real_sigmalogA <- test_smry$logA_sd[userow]
+testrow <- test_smry %>% 
+  filter(n == max(n)) %>% 
+  `[`(1, )
+testdata <- test_full %>% 
+  filter(xs == testrow$xs) %>% 
+  mutate(Date = as.Date(datetime)) %>% 
+  group_by(Date) %>% 
+  filter(c(TRUE, rep(FALSE, n() - 1))) %>% 
+  ungroup()
 
-obs <- test_full$dA[test_full$xs == test_smry[userow, ][["xs"]]]
-dates <- test_full$datetime[test_full$xs == test_smry[userow, ][["xs"]]]
-priors <- stanPriorList[[userow]]
+real_A0 <- testrow$A0
+real_sigmalogA <- testrow$logA_sd
+
+obs <- testdata$dA
+obsdates <- as.Date(testdata$datetime)
+priors <- stanPriorList[[as.character(testrow$xs)]]
 
 ```
 
@@ -113,8 +121,10 @@ plotparams <- data.frame(logA0 = rep(plot_logA0, length.out = 100),
 
 
 ndat <- length(obs)
-logposter <- logPost(datavec = obs[1:ndat], muhat = priors[["logA0_hat"]],
-                     sigmahat = priors$sigmalogA_hat, sigmasd = priors$sigmalogA_sd)
+logposter <- logPost_ar1(datavec = obs[1:ndat], datevec = obsdates,
+                         muhat = priors[["logA0_hat"]], 
+                         sigmahat = priors$sigmalogA_hat, 
+                         sigmasd = priors$sigmalogA_sd)
 
 
 df_2d <- plotparams %>% 
@@ -255,15 +265,7 @@ attr(logPosts[[1]], "gradient")(est1)
 Found the math error. Forgot to square a sigma!
 
 ```{r}
-mynlm <- function(...) suppressWarnings(nlm(...))
-
-mles <- logPosts %>%
-  map(mynlm, p = c(priors$logA0_hat + 1, priors$sigmalogA_hat / 5)) %>% 
-  map(~data.frame(logA0 = .$estimate[1], sigmalogA = .$estimate[2])) %>% 
-  setNames(1:length(obs)) %>% 
-  bind_rows(.id = "nobs") %>% 
-  mutate(nobs = as.numeric(nobs))
-
+ 
 head(mles, 10)
 
 # foo <- mynlm(logPosts[[7]], p = c(priors$logA0_hat + 3, priors$sigmalogA_hat + 3), print.level = 2)
@@ -388,10 +390,21 @@ Next: how closely do estimates match actual areas as nobs increases?
 ```{r}
 area1est <- obs[1] + exp(mles$logA0)
 
+sdfun <- function(x) {
+  # browser()
+  if (length(x) < 3) return(NA)
+  sd(x)
+}
+sdts <- 1:nrow(testdata) %>% 
+  map_dbl(~sdfun(log(testdata$area_m2[seq(1, .)])))
+
 plot(area1est, ylim = c(0, 1000))
 abline(h = obs[1] + real_A0)
 
 obs[1] - min(obs)
+
+plot(mles$sigmalogA - sdts)
+abline(h = 0)
 
 ```
 
@@ -409,12 +422,43 @@ animdf_hist %>%
   geom_point(aes(alpha = size * 0.075, size = size), 
                  shape = 21, fill = "white", color = "red")
 
-tsanim_gg <- test_full %>% 
-  filter(xs == test_smry[userow, ][["xs"]]) %>% 
+tsanim_gg <- testdata %>%
+  mutate(obsnum = 1:nrow(.)) %>% 
   glimpse() %>% 
-  ggplot(aes(x = datetime), y = dA)
+  ggplot(aes(x = datetime, y = dA)) +
+  geom_line() +
+  geom_point(aes(frame = obsnum), size = 8, shape = 21, fill = "white", 
+             alpha = 0.7, color = "red") + 
+  theme_bw() + 
+  xlab("time")
+
+tsanim_gg
+
+library()
 ```
 
 
+Time to put everything together, I think. Idea is:
 
+- 4-plot tiled animation
+    - dA timeseries in top left (2/3 of top 1/2)
+    - histogram in top right (1/3 of top 1/2)
+    - 
+    
+
+Since I'm in a hurry, I'll do the following:
+
+- 600 x 900 pixels, divided into 300 x 400 timeseries, 300 x 200 histogram
+
+```{r}
+library(future)
+library(gganimate)
+plan(remote, workers = "35.190.179.101")
+anim3 %<-%  gganimate(tsanim_gg, filename = "animts.gif", interval = 0.2, 
+                      ani.height = 300, ani.width = 400)
+
+anim3 %<-%  gganimate(anim3_gg, filename = "maxlik_hist.gif", interval = 0.2,
+                      ani.height = 300, ani.width = 200)
+
+```
 

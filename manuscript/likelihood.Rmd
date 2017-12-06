@@ -9,9 +9,6 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-
-What information do the observed $\delta A_{it}$'s provide about $A_{0, i}$? Some, surely. We know, for instance, that $A_{0, i} > 0 \implies A_{it} > \delta A_{it}$. Beyond that, we must turn to probability, and assume some probability distribution associated with $A_{it}$. This may be seen as a crutch, since erroneously making such an assumption can produce spurious results. However, if properly stated, this can lead to the correct answer. For now, we shall leave aside the question of which distribution to use, and proceed generically as far as possible.
-
 ## Likelihood and Bayes
 
 This section will expand beyond the linear model representation of McFLI into a more general definition of parameter identifiability based on probability and likelihood. 
@@ -28,31 +25,29 @@ Whereas $f()$ is a function of random outcomes conditional on known parameters, 
 
 Given a likelihood and a set of observations, $\theta$ can be inferred by several methods.  $L$ can be maximized (analytically or numerically) over the set of all possible $\theta$ to obtain the maximum likelihood estimate of $\theta$. Alternatively, Bayesian inference may be performed to obtain a full *posterior* distribution of $\theta$ representing its uncertainty *given* the both the data and its *prior* uncertianty, $\pi(\theta)$:
 $$
-f(\theta | \mathbf{y_{obs}}) = \frac{L(\theta | \mathbf{y_{oobs}})\pi(\theta)}{\int_\Theta L(\theta' | \mathbf{y_{oobs}})\pi(\theta')d\theta'}
+f(\theta | \mathbf{y_{obs}}) = \frac{L(\theta | \mathbf{y_{obs}})\pi(\theta)}{\int_\Theta L(\theta' | \mathbf{y_{obs}})\pi(\theta')d\theta'}
 $$
 The remainder of this section will employ likelihood theory to McFLI models in order to more fully ascertain the information content of SWOT-like observations regarding Mannings' equation parameters and discharge.  Section #### will demonstrate the same conclusions as section #### using likelihood. Section #### will do the same for the model from section ####, but reach a more nuanced and complete conclusion that is far less bleak. 
 
-
-
-
-
-
+In this context, a parameter is identifiable only if the 
 
 
 
 ## "Optimistic" model likelihood
 
-The "optimistic" case described in section #### may be considered a stochastic process if it is recognized that the observations are not obtained from the physics underlying Manning's equation, but from a sum of physics and multiple sources of error. This error manifests as a random variable, $\epsilon_{it}$, assumed here to be centered at zero and to have constant covariance $\Sigma$. 
+The "optimistic" case described in section #### may be considered a stochastic process if it is recognized that the observations are not obtained from the simplified physics underlying Manning's equation, but from a sum of physics and multiple sources of error. This error manifests as a random variable, $\epsilon_{it}$, assumed here to be centered at zero and to have constant variance $\sigma^2$. 
 $$
 y_{it} = \tilde{n} + \bar{q} + \dot{q_t} + \epsilon_{it}
 $$
-Since we are already being overly optimistic, we will further afford ourselves the simplifying assumption that the errors are independent in time and space, i.e. $\Sigma = \sigma^2 I$, where $\sigma^2$ is a constant and $I$ is the identity matrix. This ensures that the set of observed data contain the maximum information. In this case we can write the log-likelihood for the parameters given the data as: 
+Since we are already being overly optimistic, we will further afford ourselves the simplifying assumption that the errors are independent in time and space. This ensures that the set of observed data contain the maximum information. In this case we can write the log-likelihood for the parameters given the data as: 
 
 
 $$
 \ell(\tilde{n}, \bar{q}, \dot{q_t}) = \sum_{i,t}\log f(y_{it} | \tilde{n}, \bar{q}, \dot{q_t})
 $$
-To show that this model is not identifiable, it is sufficient to show that $f(y | y_{it} = \tilde{n}, \bar{q}, \dot{q_t}) = f(y | \tilde{n}', \bar{q}', \dot{q_t}), \tilde{n} \ne \tilde{n}', \bar{q} \ne \bar{q}'$. For example 
+To show that this model is not identifiable, it is sufficient to show that $f(y | y_{it} = \tilde{n}, \bar{q}, \dot{q_t}) = f(y | \tilde{n}', \bar{q}', \dot{q_t}), \tilde{n} \ne \tilde{n}', \bar{q} \ne \bar{q}'$. 
+
+
 
 
 
@@ -60,62 +55,75 @@ To show that this model is not identifiable, it is sufficient to show that $f(y 
 
 ## "Pessimistic" model likelihood
 
+Equation #### gives the likelihood of the Manning parameters assuming $A$ is perfectly known and therefore part of the measurements, $\mathbf{y}$. Put another way, it is the likelihood *conditional on* the $A_0$ parameters. 
 
 
-As noted, equation #### can be repraramterized as follows:
 $$
-y_{it} = \tilde{n} + \bar{q} + \dot{q_t} + a_{it} + \epsilon_{it}
-$$
-
-where $\epsilon_{it}$ is a random variable centered at zero and with constant covariance $\Sigma$. *Given* that we know $\tilde{n}, \bar{q}, \dot{q_t}, a_{it} \text{ and } \Sigma$, then $y_{it}$ is a random variable centered at $\mu_{it} = \tilde{n} + \bar{q} + \dot{q_t} + a_{it}$ and with constant covariance $\Sigma$. Therefore the likelihood, $L$ of the parameters $\{ \tilde{n}, \bar{q}, \dot{q_t}, a_{it}\}$ is equal to the probability density, $f$, of $y_{it}$ given these values. 
-$$
-L(\tilde{n}, \bar{q}, \dot{q_t}, a_{it}, \Sigma) = f(y_{it} | \tilde{n}, \bar{q}, \dot{q_t}, a_{it}, \Sigma)
+f(\alpha, \dot{q},  a_{0} | y,  \delta_{it}) = f(y, \alpha, \dot{q_t},  a_{it}) f(a_{it})
 $$
 
-If $y_{it}$ are all independent from one another, then the joint pdf is equalt to the product of the 
 
+## Inference for $A_0$
 
+This section will discuss the inference of $A_0$ using distributional assumptions of $A$. Specifically, we will assume that for a given location, $A_{it}$ is log-normally distributed with parameters $\mu$ and $\sigma$. This assumption is likely to be imperfect for many locations, but it has the following advantageous qualities:
 
-Going forward, we will further assume $\epsilon_{it}$ to be normally distributed, although the conclusions of this section are applicable for any symmetric distribution fully parameterized by mean and covariance. 
+- $A_{it}$ is strictly positive.
+- $A_{it}$ is likely to be right-skewed, as rivers experience infrequent but very large cross-sectional areas during storm / flood stages. 
+- The log-transform of $A_{it}$ appears among additive terms in equation @eq:Mannings3. Sums of random variables tend toward normality. 
 
-The log-likeilihood is then 
-
+This assumption gives the distribution for $\delta A$, conditional on the parameters $\mu, \sigma$, and $A_0$:
 $$
 \begin{aligned}
-\ell(\tilde{n}, \bar{q}, \dot{q_t}, a_{it}, \Sigma) &= -\frac{1}{2} \log |\Sigma| -\frac{1}{2} (y_{it} - \mu_{it})'\Sigma^{-1}(y_{it} - \mu_{it}) \\
-&= -\frac{1}{2} \log |\Sigma| -\frac{1}{2} (y_{it} - (\tilde{n} + \bar{q} + \dot{q_t} + a_{it}))'\Sigma^{-1}(y_{it} - (\tilde{n} + \bar{q} + \dot{q_t} + a_{it}))
+f(\delta A | \mu, \sigma, A_0) &= f_A(\delta A + A_0) \Bigg|\frac{\partial A}{\partial \delta A}\Bigg| \\
+&=  f_A(\delta A + A_0) 
 \end{aligned}
 $$
+where $f_A$ is the lognormal distribution governing $A$:
+$$
+f_A(x) = \frac{1}{\sqrt{2 \pi}\sigma x} \exp(-\frac{1}{2}(\log x - \mu)^2)
+$$
+Thus, equation #### is 
+$$
+f(\delta A | A_0, \mu, \sigma) = \frac{1}{\sqrt{2 \pi}\sigma (\delta A + 
+A_0)} \exp(-\frac{1}{2}(\log(\delta A + 
+A_0) - \mu)^2)
+$$
+This can be further simplified by shifting $A_0$ to be the sample *median*, rather than the sample minimum, of $A$. This is advantageous for several reasons. First, the sample median is a stationary statistic and does not depend on sample size. Second, for the lognormal distribution the expected value of the log-transform of the sample median is equal to the parameter $\mu$, thus reducing the number of parameters in the distribution function. This adjustment is straightforward using the observed data: $A_{0, median} = A_{0, minimum} + median(\delta A)$. A similar adjustment is made for $\delta A$: $\delta A_{median} = \delta A_{minimum} - median(\delta A_{minimum})$. Thus adjusted, we arrive at the final distribution function for $\delta A$:
+$$
+f(\delta A | A_0, \sigma) = \frac{1}{\sqrt{2 \pi}\sigma (\delta A + 
+A_0)} \exp \Big(-\frac{1}{2}\big[\log(\delta A + 
+A_0) - \log{A_0}\big]^2\Big)
+$$
+Given a sample of $N_t$ temporally independent observations of $\delta A_t$, then, the log-likelihood of these parameters is
+$$
+\ell(\sigma_A, A_0 | \delta A) = \sum_{t = 1}^{N_t} \Big(- \log {(\delta A_{t} + A_0)} -  \log{\sigma_A} - \frac{1}{2 \sigma_A^2}[\log (x_i + A_0) - \log A_0]^2 \Big)
+$$
+Maximum likelihood estimates for $A_0$ and $\sigma_A$ can be obtained via graident ascent, where the gradient is given by the partial derivatives:
 
-We can find maximum likelihood estimates of several of these parameters by marginalizing over this function:
 
 $$
-\begin{aligned}
-\frac{\partial \ell}{\partial \dot{q_t}} &= - \Sigma^{-1}(y_{it} - \mu_{it}) \\
-& = - \Sigma^{-1}(y_{it} - \dot{q_t}) + C
-\end{aligned}
+\frac{\partial \ell}{\partial A_0} = \sum_{i = 1}^{N_t} \Big( -\frac{1}{x_i + A_0}  - \frac{1}{ \sigma_A^2}\big[\log (x_i + A_0) - \log A_0 \big] \big[\frac{1}{x_i + A_0} - \frac{1}{A_0} \big] \Big)
 $$
+and
+$$
+\frac{\partial \ell}{\partial{\sigma_A}} = \sum_{i = 1}^{N_t} \Big(  -\frac{1}{\sigma_A} + \frac{2}{ \sigma_A^3}[\log (x_i + A_0) - \log A_0]^2 \Big)
+$$
+Since $A_t$ is likely to be highly dependent temporally, the assumption of independence is very likely to be violated unless the successive observations are taken many days apart.
 
-This is zero when $\dot{q_t} = \bar{y}_{\cdot t}$. Further, the second derivative of $\ell(\dot{q_t})$ is 
+
+
+
 
 ## Previous work
 
 
 
-Let $f_i(A_{i1}, A_{i2}, \dots, A_{iN_t} | \theta_i)$ be the joint probability distribution governing $\mathbf{A}_{i}$, contitional on location-specific distributional parameters $\theta_i$. Then the likelihood of any particular $\theta_i$ is the same, only considered as a function of $\theta_i$ and conditional on the data, $A_{i1}, A_{i2}, \dots, A_{iN_t}$. 
 
-$$
-L(\theta_i | A_{i1}, A_{i2}, \dots, A_{iN_t}) = f_i(A_{i1}, A_{i2}, \dots, A_{iN_t} | \theta_i)
-$$
-
-For any set of observations, then, we could obtain a maximum likelihood estimate for $\theta_i$, assuming such a maximum exists. 
 
 
 When choosing a distribution for $A_{it}$, we'll consider the following:
 
-- $A_{it}$ is strictly positive.
-- $A_{it}$ is likely to be right-skewed, as rivers experience infrequent but very large cross-sectional areas during storm / flood stages. 
-- The log-transform of $A_{it}$ appears among additive terms in equation @eq:Mannings3. 
+- ​
 
 These features--positivity, right-skew, multiplicative governing process--lead naturally to the lognormal distribution for a likelihood function. Its parameters are $\theta_i = \{\mu_i, \sigma^2_i\}$--the mean and variance, respectively, of $\log{\mathbf{A}_i}$. An additional parameter, $\rho_i$, is further required to specify the temporal autocorrelation of $\mathbf{A}_i$ Under this assumption, we obtain the following likelihood 
 
@@ -170,3 +178,39 @@ This is proving intractable to maximize analytically.
 
 
 Here we shall consider the distribution of random variables. Convention dictates that random variables be denoted using capital letters and their realizations (data) be denoted in lowercase. Since we have already represented data in uppercase, herein we instead use boldface to denote random variables, and non-bold for data. 
+
+
+
+
+
+(Pessimistic case)
+
+As noted, equation #### can be repraramterized as follows:
+$$
+y_{it} = \tilde{n} + \bar{q} + \dot{q_t} + a_{it} + \epsilon_{it}
+$$
+where $\epsilon_{it}$ is a random variable centered at zero and with constant covariance $\Sigma$. *Given* that we know $\tilde{n}, \bar{q}, \dot{q_t}, a_{it} \text{ and } \Sigma$, then $y_{it}$ is a random variable centered at $\mu_{it} = \tilde{n} + \bar{q} + \dot{q_t} + a_{it}$ and with constant covariance $\Sigma$. Therefore the likelihood, $L$ of the parameters $\{ \tilde{n}, \bar{q}, \dot{q_t}, a_{it}\}$ is equal to the probability density, $f$, of $y_{it}$ given these values. 
+$$
+L(\tilde{n}, \bar{q}, \dot{q_t}, a_{it}, \Sigma) = f(y_{it} | \tilde{n}, \bar{q}, \dot{q_t}, a_{it}, \Sigma)
+$$
+If $y_{it}$ are all independent from one another, then the joint pdf is equalt to the product of the 
+
+
+
+Going forward, we will further assume $\epsilon_{it}$ to be normally distributed, although the conclusions of this section are applicable for any symmetric distribution fully parameterized by mean and covariance. 
+
+The log-likeilihood is then 
+$$
+\begin{aligned}
+\ell(\tilde{n}, \bar{q}, \dot{q_t}, a_{it}, \Sigma) &= -\frac{1}{2} \log |\Sigma| -\frac{1}{2} (y_{it} - \mu_{it})'\Sigma^{-1}(y_{it} - \mu_{it}) \\
+&= -\frac{1}{2} \log |\Sigma| -\frac{1}{2} (y_{it} - (\tilde{n} + \bar{q} + \dot{q_t} + a_{it}))'\Sigma^{-1}(y_{it} - (\tilde{n} + \bar{q} + \dot{q_t} + a_{it}))
+\end{aligned}
+$$
+We can find maximum likelihood estimates of several of these parameters by marginalizing over this function:
+$$
+\begin{aligned}
+\frac{\partial \ell}{\partial \dot{q_t}} &= - \Sigma^{-1}(y_{it} - \mu_{it}) \\
+& = - \Sigma^{-1}(y_{it} - \dot{q_t}) + C
+\end{aligned}
+$$
+This is zero when $\dot{q_t} = \bar{y}_{\cdot t}$. Further, the second derivative of $\ell(\dot{q_t})$ is 
