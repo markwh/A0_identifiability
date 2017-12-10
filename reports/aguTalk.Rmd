@@ -1,0 +1,217 @@
+---
+output: beamer_presentation
+---
+
+## Title slide
+
+Thank you for coming. I'm grateful for being able to present in this session. 
+
+## Overview of talk
+
+- A little about SWOT satellite mission this work is supporting
+- Bayesian model for river discharge using satellite observations
+- Proxy dataset for testing this model
+- Results on proxy dataset
+
+## Data assimilation, Bayesian, large dataset
+
+The real large dataset is not yet in operation, I'm going to show results from a proxy, old-fashioned dataset
+
+## Introduction: SWOT satellite mission
+
+- who: NASA, CNES
+- what: global topography using wide-swath radar interferometry
+    - recurrence interval (?)
+- when: 2021 - 2026(?)
+
+## Measurements
+
+- height via radar interferrometry
+- width via image classification?
+- slope via height / distance
+- dA via integration: $\int_{w' < w} w \cdot dh $
+
+## Estimation approch: Mass conserved flow law inversion (McFLI)
+
+- Flow law: typically Manning's equation
+    - also AMHG (Gleason citation)
+- Mass conservation at the reach or multi-reach scale
+
+## The model I use
+
+- Manning's equation
+
+$$
+Q = \frac{1}{n}A^{5/3}W^{-2/3}S^{1/2}
+$$
+
+
+- log transform (Bayesians *love* log space)
+
+$$
+\log Q  =  - \log n  + \frac{5}{3} \log A - \frac{2}{3} \log W + \frac{1}{2} \log S
+$$
+
+- Adjust for SWOT observables
+
+$$
+\log Q  =  - \log n  + \frac{5}{3} \log (A_0 + \delta A) - \frac{2}{3} \log W + \frac{1}{2} \log S
+$$
+
+
+
+- Put indices on it
+
+$$
+\log Q_{i t}  =  - \log n  + \frac{5}{3} \log (A_{0, i} + \delta A_{it}) - \frac{2}{3} \log W_{it} + \frac{1}{2} \log S_{it}
+$$
+
+- Mass conservation removes one of the Q indices
+
+$$
+\log Q_{t}  =  - \log n  + \frac{5}{3} \log (A_{0, i} + \delta A_{it}) - \frac{2}{3} \log W_{it} + \frac{1}{2} \log S_{it}
+$$
+
+- Rearrange it, acknowledge error
+
+$$
+\frac{2}{3} \log W_{it} - \frac{1}{2} \log S_{it}  =   - \log n  + \frac{5}{3} \log (A_{0, i} + \delta A_{it}) - \log Q_t + \epsilon_{it}
+$$
+
+- Now can write the likelihood
+
+$$
+f(y_{it} | n, A_{0,i}, \delta A_{it}, Q_t) \sim N(\mu = RHS, \sigma)
+$$
+
+- Of course, we're not quite finished, since $\delta A$ is measured. We want:
+
+$$
+f(y_{it}, \delta A_{it} | n, A_{0,i}, Q_t)
+$$
+
+- But that's just:
+
+$$
+f(y_{it}, \delta A_{it} | n, A_{0,i}, Q_t) = f(y_{it} | n, A_{0,i}, \delta A_{it}, Q_t) \cdot f(\delta A_{it} | n, A_{0,i}, Q_t)
+$$
+
+First part of rhs is boring, normal, familiar. But impossible to use without havning the second part. I'm going to focus on second part. 
+
+## Part 2: Inferring $A_0$ from $\delta A$
+
+First: Assume a distribution for $A$ at a particular cross-section.
+
+$$
+A \sim \log N(\mu_{\log A}, \sigma_{\log A})
+$$
+
+Second: for a clever adjustment of $\delta A$, $\mu_{\log A} = \log A_0$
+
+Then:
+
+$$
+f_{\delta A | \sigma_A, A_0}(x |  \sigma_A, A_0) = \frac{1}{(x + A_0) \sqrt{2 \pi} \sigma_A} \exp{\big(-\frac{1}{2 \sigma_A^2}[\log (x + A_0) - \log A_0]^2\big)}, (x > -A_0)
+$$
+
+So simple! (This actually ignores autoregression component we use when aggregating data)
+
+## Or: just do this:
+
+- Find legacy datasets of $A$, $W$
+- Split into $A_0$, $\delta A$
+- Fit a line
+
+## (Aside about HydroSWOT dataset)
+
+- Collected by
+- Map of stations
+- Stats of observations
+- Acknowledgment
+
+## Results
+
+First, a demonstration
+
+```{r}
+demoset1 <- test_full %>% 
+  filter(xs == 6610000)
+priors1 <- makeMlePriors(test_smry %>% filter(xs == 6610000))
+
+
+plot(demoset1$dA, type = "l")
+plot(demoset1$area_m2, type = "l")
+```
+
+```{r}
+demoset1$dH <- with(demoset1, c(0, diff(dA)) / w_m)
+
+ggplot(demoset1, aes(x = h_m, y = dA)) +
+  geom_point()
+
+ggplot(demoset1, aes(x = w_m / 2, y = cumsum(dH), 
+                     xend = -w_m / 2, yend = cumsum(dH))) +
+  geom_segment()
+
+ggplot()
+```
+
+Demo 1: Animation of dA timeseries 
+
+```{r}
+
+ts_anim(demoset1$dA, demoset1$Date)
+1
+```
+
+
+
+
+Demo 2: Add histogram to the right.
+
+```{r}
+hist_anim(demoset1$dA, demoset1$Date)
+```
+
+
+Demo 2: Add timesieries of A0 estimate
+
+```{r}
+# mlets1 <- mle_ts(logPost_ar1, data.frame(obs = demoset1$dA, demoset1$Date), p1 = c(6.4, 5))
+# plot(mlets1[, 1])
+# plot(demoset1$dA)
+
+mlets2 <- mle_ts(logPost_ar1, data.frame(obs = demoset1$dA, demoset1$Date), p1 = c(6.4, 5), 
+                 priors = priors1)
+ts_anim(mlets2[, 1])
+```
+
+
+Demo 4: Add 2-d contour plot for A0, sigmalogA
+
+```{r}
+nllfun1 <- logPost_ar1(data.frame(obs = demoset1$dA, dates = demoset1$Date), 
+                       priors = priors1)
+grid1 <- nll_grid(xvec = seq(6.44, 7, length.out = 100L), 
+                  yvec = 10^(seq(-2, -0.3, length.out = 100L))
+                  
+```
+
+
+Demo 5: The same, now with prior distribution from HydroSWOT
+
+## Overall results:
+
+Prior distribution
+
+tweenr to posterior distribution
+
+Remove low-area-variability cases
+
+## Why are low-area variability cases bad?
+
+Static image of likelihood contours
+
+## Recap and Conclusions
+
+## Future work

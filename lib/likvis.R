@@ -1,7 +1,7 @@
 # visualization and animation functions
 
 
-# Negative log likelihood -------------------------------------------------
+# (negative log) Likelihood function factories ----------------------------
 
 logPost <- function(datadf, priors = NULL) {
   
@@ -258,7 +258,7 @@ logPost_mvn <- function(datavec, muhat, Sigma) {
 
 # 2-D (static) version
 
-llikGrid <- function(xvec, yvec, nllfun, nllData, ..., accum = FALSE,
+nll_grid <- function(xvec, yvec, nllfun, accum = FALSE,
                      logshift = 1) {
   
   nx <- length(xvec)
@@ -272,20 +272,17 @@ llikGrid <- function(xvec, yvec, nllfun, nllData, ..., accum = FALSE,
                            y = rep(yvec, each = nx),
                            ymax = rep(yshift, each = nx))
   
-  # nllfun <- nllFactory(nllData, ...)
-  # 
-  out <- plotparams %>% 
-    mutate(logpost = map_dbl(map2(x, y, c), nllfun),
-           lp_adj = log(logpost - min(logpost) + logshift))
+  nlldf <- map(map2(x, y, c), nllfun, cumulative = accum)
   
-  # if (accum) {
-  #   out <- 
-  # }
+  out <- plotparams %>% 
+    mutate(logpost = map(map2(x, y, c), nllfun, cumulative = accum),
+           lp_adj = log(logpost - min(logpost) + logshift))
   
   out
 }
 
-llikContour <- function(griddf, realx, realy) {
+
+nll_contour <- function(griddf, realx, realy) {
   
   df_hats <- filter(griddf, logpost == min(logpost))
   
@@ -349,4 +346,105 @@ mledf <- function(factory, datadf, p, ..., cumulative = FALSE) {
   
   as.data.frame(out)
 }
+
+
+
+# timeseries animation ----------------------------------------------------
+
+ts_anim <- function(obs, time = NULL, preplot = FALSE, trace = TRUE) {
+  
+  if (is.null(time)) 
+    time <- 1:length(obs)
+  plotdf <- data.frame(obs = obs, time = time)
+
+  out <- ggplot(plotdf, aes(x = time, y = obs)) +
+    geom_point(aes(frame = time))
+  
+  if (preplot) {
+    out <- out + geom_line()
+  }
+  
+  if (trace) {
+    out <- out + geom_line(aes(frame = time))
+  }
+  
+  out
+}
+
+
+
+# histogram animation -----------------------------------------------------
+
+hist_anim <- function(obs, time = NULL) {
+  
+  xmin <- min(obs)
+  xmax <- max(obs)
+  
+  datavecs <- 1:length(obs) %>% 
+    map(~1:.) %>% 
+    map(~obs[.])
+  
+  animdf_hist <- datavecs %>% 
+    map(~data.frame(obs = ., nobs = length(.))) %>% 
+    bind_rows() %>% 
+    # left_join(mles, by = "nobs") %>% 
+    group_by(nobs) %>% 
+    mutate(obsnum = 1:n(), 
+           size0 = obsnum - nobs + 4,
+           size = ifelse(size0 < 1, 1, size0 * 2)) %>% 
+    ungroup() %>% 
+    mutate(nobs = as.factor(nobs))
+  
+  
+  out <- animdf_hist %>% 
+    # filter(nobs == 222) %>%
+    ggplot(aes(x = obs, y = ..ncount.., frame = nobs)) +
+    geom_histogram(aes(frame = nobs, group = nobs), fill = "gray30", 
+                   alpha = 1, bins = 30, position = "identity") +
+    geom_point(aes(y = 0, alpha = size * 0.075, size = size), 
+               shape = 21, fill = "white", color = "red") +
+    scale_alpha_identity() +
+    # scale_shape_manual(values = c(21, 1)) +
+    # geom_rug() +
+    xlim(xmin, xmax) + 
+    # geom_line(data = densdf, aes(x = x, y = y, group = nobs, frame = nobs)) +
+    # stat_function(aes(args = c(logmean = logA0[1], logsd = sigmalogA[1])), fun = densfun) +
+    theme_bw() +
+    guides(alpha = "none", shape = "none", size = "none") +
+    ylab("scaled count / scaled density") +
+    scale_y_continuous(breaks = NULL) +
+    coord_flip()
+  
+  out
+}
+
+
+# MLE timeseries ----------------------------------------------------------
+
+#' @param factory negative log likelihood function factory
+#' @param ... Iterable arguments to factory
+#' @param priors a list to be supplied to factory.
+#' @param p1 start values for parameters for the first timeseries point
+mle_ts <- function(factory, datadf, p1, priors = NULL) {
+  arginds <- 1:nrow(datadf) %>% 
+    map(~1:.)
+  
+  datalist <- lapply(arginds, function(inds) datadf[inds, ])
+  nllfuns <- map(datalist, factory, priors = priors)
+  # browser()
+  p_i <- p1
+  mleests <- vector("list", length = length(nllfuns))
+  for (i in 1:length(nllfuns)) {
+    cat(".")
+    mlei <- suppressWarnings(nlm(nllfuns[[i]], p = p_i))
+    mleests[[i]] <- mlei$estimate
+    p_i <- mlei$estimate 
+  }
+  
+  out <- t(unname(as.data.frame(mleests)))
+  out
+}
+
+# MLE timeseries animation ------------------------------------------------
+
 
