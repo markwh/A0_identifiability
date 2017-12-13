@@ -240,7 +240,7 @@ gganimate(tsanim1_gg)
 
 library(future)
 library(gganimate)
-plan(remote, workers = "35.227.22.109")
+plan(remote, workers = "35.227.115.126")
 options(future.globals.maxSize= 891289600)
 
 
@@ -318,6 +318,9 @@ nll_contour(grid1, realx = demosmry1$logA0, realy = demosmry1$logA_sd) +
 nllcontanim1_gg <- nll_contour_anim(grid1_accum, 
                                     realx = demosmry1$logA0, 
                                     realy = demosmry1$logA_sd)
+nllcontanim %<-% gganimate(nllcontanim1_gg, filename = "nllcontanim.gif", 
+                            interval = 0.1, ani.height = 375, ani.width = 400)
+
 ```
 
 
@@ -354,9 +357,18 @@ library(tweenr)
 
 pripostween1 <- tween_states(list(priordf, postdf1), tweenlength = 2, statelength = 5,
                              ease = "linear", nframes = 240)
-
-pripostanim1 %<-% gganimate(pripostween1, filename = "tsanim1_v2.gif", 
+pripostanim1_gg <- ggplot(data = pripostween1, 
+                          aes(x = real, y = pred, frame = .frame)) +
+  geom_abline() +
+  geom_point(shape = 21, color = "#FFC6A7", 
+             fill = "#F55A07", alpha = 0.45) +
+  mytheme +
+  scale_x_log10() +
+  scale_y_log10() +
+  annotation_logticks()
+pripostanim1 %<-% gganimate(pripostanim1_gg, filename = "pripostanim.gif", 
                             interval = 0.04, ani.height = 375, ani.width = 900) 
+
 ```
 
 
