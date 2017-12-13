@@ -44,13 +44,14 @@ The real large dataset is not yet in operation, I'm going to show results from a
 $$
 Q = \frac{1}{n}A^{5/3}W^{-2/3}S^{1/2}
 $$
-
+## The model (2)
 
 - log transform (Bayesians *love* log space)
 
 $$
 \log Q  =  - \log n  + \frac{5}{3} \log A - \frac{2}{3} \log W + \frac{1}{2} \log S
 $$
+## The model (3)
 
 - Adjust for SWOT observables
 
@@ -58,7 +59,7 @@ $$
 \log Q  =  - \log n  + \frac{5}{3} \log (A_0 + \delta A) - \frac{2}{3} \log W + \frac{1}{2} \log S
 $$
 
-
+## The model (4)
 
 - Put indices on it
 
@@ -66,11 +67,15 @@ $$
 \log Q_{i t}  =  - \log n  + \frac{5}{3} \log (A_{0, i} + \delta A_{it}) - \frac{2}{3} \log W_{it} + \frac{1}{2} \log S_{it}
 $$
 
+## The model (5)
+
 - Mass conservation removes one of the Q indices
 
 $$
 \log Q_{t}  =  - \log n  + \frac{5}{3} \log (A_{0, i} + \delta A_{it}) - \frac{2}{3} \log W_{it} + \frac{1}{2} \log S_{it}
 $$
+
+## The model (6)
 
 - Rearrange it, acknowledge error
 
@@ -78,11 +83,15 @@ $$
 \frac{2}{3} \log W_{it} - \frac{1}{2} \log S_{it}  =   - \log n  + \frac{5}{3} \log (A_{0, i} + \delta A_{it}) - \log Q_t + \epsilon_{it}
 $$
 
+## The model (7)
+
 - Now can write the likelihood
 
 $$
 f(y_{it} | n, A_{0,i}, \delta A_{it}, Q_t) \sim N(\mu = RHS, \sigma)
 $$
+
+## The model (8)
 
 - Of course, we're not quite finished, since $\delta A$ is measured. We want:
 
@@ -126,28 +135,90 @@ So simple! (This actually ignores autoregression component we use when aggregati
 
 - Collected by
 - Map of stations
+- Measured variables
 - Stats of observations
 - Acknowledgment
+- Issues along the way
+
+```{r}
+mapdat1 <- hswot %>% 
+  glimpse() %>% 
+  group_by(xs) %>% 
+  summarize(lat = mean(lat), lon = mean(lon))
+
+ggplot(mapdat1, aes(x = lon, y = lat)) + 
+  # borders("state") +
+  borders("usa", 
+          xlim = c(-170, -50),
+          ylim = c(15, 75)) +
+  # borders("world", 
+  #         xlim = c(-170, -50),
+  #         ylim = c(15, 65), fill = FALSE) +
+  geom_point(size = 1, alpha = 0.2) +
+  coord_map(projection = "rectangular", 35)
+```
+
+
+```{r}
+mapdat2 <- bind_rows(train_smry, test_smry, .id = "set")
+
+data("unemp")
+
+ggplot(mapdat2, aes(x = lon, y = lat)) + 
+  # borders("state") +
+  borders("usa", 
+          xlim = c(-170, -50),
+          ylim = c(15, 75)) +
+  # borders("state", regions = "alaska") +
+  # borders("world", 
+  #         xlim = c(-170, -50),
+  #         ylim = c(15, 65), fill = FALSE) +
+  geom_point(size = 1, alpha = 0.2) +
+  coord_map(projection = "rectangular", 35)
+
+
+ggplot(mapdat2, aes(x = lon, y = lat)) + 
+  # borders("state") +
+  borders("usa", 
+          xlim = c(-170, -50),
+          ylim = c(15, 75)) +
+  # borders("world", 
+  #         xlim = c(-170, -50),
+  #         ylim = c(15, 65), fill = FALSE) +
+  geom_point(aes(color = set), size = 1, alpha = 0.6) +
+  guides(color = "none") +
+  coord_map(projection = "rectangular", 35)
+```
+
+```{r}
+ggplot(train_smry, aes(x = logW_mean, y = logA0)) +
+  geom_point(shape = 21, color = "#FFC6A7", 
+             fill = "#F55A07", alpha = 0.7) +
+  mytheme
+
+# ggplot(train_smry, aes(x = exp(logW_mean), y = exp(logA0))) +
+#   geom_point() +
+#   xlab("Geometric mean width") +
+#   ylab("A0")
+
+```
+
 
 ## Results
 
 First, a demonstration
 
 ```{r}
+xs1 <- 6610000
 demoset1 <- test_full %>% 
-  filter(xs == 6610000)
-priors1 <- makeMlePriors(test_smry %>% filter(xs == 6610000))
-
-
-plot(demoset1$dA, type = "l")
-plot(demoset1$area_m2, type = "l")
+  filter(xs == xs1)
+demosmry1 <- test_smry %>% 
+  filter(xs == xs1)
+priors1 <- makeMlePriors(test_smry %>% filter(xs == xs1))
 ```
 
 ```{r}
 demoset1$dH <- with(demoset1, c(0, diff(dA)) / w_m)
-
-ggplot(demoset1, aes(x = h_m, y = dA)) +
-  geom_point()
 
 ggplot(demoset1, aes(x = w_m / 2, y = cumsum(dH), 
                      xend = -w_m / 2, yend = cumsum(dH))) +
@@ -159,8 +230,23 @@ ggplot()
 Demo 1: Animation of dA timeseries 
 
 ```{r}
+nn <- 3
+# nn <- nrow(demoset1)
+tsanim1_gg <- ts_anim(demoset1$dA[1:nn], demoset1$Date[1:nn]) +
+  mytheme +
+  ylab("dA")
 
-ts_anim(demoset1$dA, demoset1$Date)
+gganimate(tsanim1_gg)
+
+library(future)
+library(gganimate)
+plan(remote, workers = "35.227.22.109")
+options(future.globals.maxSize= 891289600)
+
+
+tsanim1 %<-% {gganimate(tsanim1_gg, filename = "tsanim1_v2.gif", interval = 0.1,
+                        ani.height = 375, ani.width = 900)}
+tsanim1
 1
 ```
 
@@ -170,8 +256,18 @@ ts_anim(demoset1$dA, demoset1$Date)
 Demo 2: Add histogram to the right.
 
 ```{r}
-hist_anim(demoset1$dA, demoset1$Date)
+nn <- 7
+nn <- nrow(demoset1)
+hist_anim1_gg <- hist_anim(demoset1$dA[1:nn], demoset1$Date[1:nn]) +
+  mytheme
+
+# gganimate(hist_anim1_gg, filename = "hist1_deleteme.gif")
+
+histanim1 %<-% {gganimate(hist_anim1_gg, filename = "histanim1.gif", interval = 0.1,
+                        ani.height = 375, ani.width = 400)}
 ```
+
+![](hist1_deleteme.gif)
 
 
 Demo 2: Add timesieries of A0 estimate
@@ -181,20 +277,47 @@ Demo 2: Add timesieries of A0 estimate
 # plot(mlets1[, 1])
 # plot(demoset1$dA)
 
-mlets2 <- mle_ts(logPost_ar1, data.frame(obs = demoset1$dA, demoset1$Date), p1 = c(6.4, 5), 
-                 priors = priors1)
-ts_anim(mlets2[, 1])
+mlets2 <- mle_ts(logPost_ar1, data.frame(obs = demoset1$dA, demoset1$Date), 
+                 p1 = c(6.4, 5), priors = priors1)
+
+mletsanim1_gg <- ts_anim(exp(mlets2[, 1]))
+
+mletsanim1 %<-% {gganimate(mletsanim1_gg, filename = "mletsanim1.gif", 
+                           interval = 0.1, ani.height = 375, ani.width = 900)}
 ```
 
 
 Demo 4: Add 2-d contour plot for A0, sigmalogA
 
 ```{r}
+nllfun0 <- logPost_ar1(data.frame(obs = demoset1$dA, dates = demoset1$Date))
 nllfun1 <- logPost_ar1(data.frame(obs = demoset1$dA, dates = demoset1$Date), 
                        priors = priors1)
+
+# nllfun <- nllfun1
+# accum <- TRUE
+# logshift = 1
+
+grid0 <- nll_grid(xvec = seq(6.44, 7, length.out = 100L), 
+                  yvec = 10^(seq(-2, -0.3, length.out = 100L)),
+                  nllfun = nllfun0)
+
 grid1 <- nll_grid(xvec = seq(6.44, 7, length.out = 100L), 
-                  yvec = 10^(seq(-2, -0.3, length.out = 100L))
+                  yvec = 10^(seq(-2, -0.3, length.out = 100L)),
+                  nllfun = nllfun1)
+grid1_accum <- nll_grid(xvec = seq(6.44, 7, length.out = 100L), 
+                  yvec = 10^(seq(-2, -0.3, length.out = 100L)),
+                  nllfun = nllfun1, accum = TRUE)
                   
+nll_contour(grid0, realx = demosmry1$logA0, realy = demosmry1$logA_sd)
+nll_contour(grid1, realx = demosmry1$logA0, realy = demosmry1$logA_sd) +
+  mytheme +
+  guides(fill = "none") +
+  xlab("log A0") + ylab("SD(log A)")
+
+nllcontanim1_gg <- nll_contour_anim(grid1_accum, 
+                                    realx = demosmry1$logA0, 
+                                    realy = demosmry1$logA_sd)
 ```
 
 
@@ -203,6 +326,39 @@ Demo 5: The same, now with prior distribution from HydroSWOT
 ## Overall results:
 
 Prior distribution
+
+```{r}
+priordf <- data.frame(real = test_smry$A0, pred = exp(logA0_pred))
+postdf1 <- data.frame(real = test_smry$A0, pred = exp(mle1_withprior$logA0))
+ggplot(priordf, aes(x = real, y = pred)) +
+  geom_abline() +
+  geom_point(shape = 21, color = "#FFC6A7", 
+             fill = "#F55A07", alpha = 0.45) +
+  mytheme +
+  scale_x_log10() +
+  scale_y_log10() +
+  annotation_logticks()
+
+ggplot(postdf1, aes(x = real, y = pred)) +
+  geom_abline() +
+  geom_point(shape = 21, color = "#FFC6A7", 
+             fill = "#F55A07", alpha = 0.45) +
+  mytheme +
+  scale_x_log10() +
+  scale_y_log10() +
+  annotation_logticks()
+
+
+
+library(tweenr)
+
+pripostween1 <- tween_states(list(priordf, postdf1), tweenlength = 2, statelength = 5,
+                             ease = "linear", nframes = 240)
+
+pripostanim1 %<-% gganimate(pripostween1, filename = "tsanim1_v2.gif", 
+                            interval = 0.04, ani.height = 375, ani.width = 900) 
+```
+
 
 tweenr to posterior distribution
 

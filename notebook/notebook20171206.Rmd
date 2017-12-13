@@ -118,22 +118,22 @@ I also did this already, notebook20171202.Rmd. Except I did it with train data, 
 
 noprior_ar1 <- test_full %>% 
   split(.$xs) %>% 
-  map(~logPost_ar1(datadf = data.frame(.$dA, .$Date)))
+  purrr::map(~logPost_ar1(datadf = data.frame(.$dA, .$Date)))
 
 starts <- test_full %>% 
   group_by(xs) %>% 
   summarize(logA0_start = log(-min(dA)) + 1) %>% 
   split(.$xs) %>% 
-  map(~c(.$logA0_start, 0.2))
+  purrr::map(~c(.$logA0_start, 0.2))
 
 starts[[1]]  
 
 mynlm <- function(x, y) nlm(f = x, p = y)
 
 # mle1_noprior <- map2(noprior_ar1, starts, nlm) %>%
-#   map(~.$estimate) %>%
-#   map(~as.data.frame(as.list(.))) %>%
-#   map(setNames, c("logA0", "sigma_logA")) %>%
+#   purrr::map(~.$estimate) %>%
+#   purrr::map(~as.data.frame(as.list(.))) %>%
+#   purrr::map(setNames, c("logA0", "sigma_logA")) %>%
 #   bind_rows(.id = "xs") %>% 
 #   mutate(xs = as.numeric(xs))
 
@@ -174,7 +174,7 @@ makeMlePriors <- function(smry) {
 
 mlePriorList <- test_smry %>% 
   split(.$xs) %>% 
-  map(makeMlePriors)
+  purrr::map(makeMlePriors)
 # cache("mlePriorList")
 
 
@@ -188,7 +188,7 @@ starts <- test_full %>%
   group_by(xs) %>% 
   summarize(logA0_start = log(-min(dA)) + 1) %>% 
   split(.$xs) %>% 
-  map(~c(.$logA0_start, 0.2))
+  purrr::map(~c(.$logA0_start, 0.2))
 
 starts[[1]]  
 
@@ -198,9 +198,9 @@ mynlm <- function(x, y) {
 }
 
 mle1_withprior <- map2(withprior_ar1, starts, mynlm) %>%
-  map(~.$estimate) %>%
-  map(~as.data.frame(as.list(.))) %>%
-  map(setNames, c("logA0", "sigma_logA")) %>%
+  purrr::map(~.$estimate) %>%
+  purrr::map(~as.data.frame(as.list(.))) %>%
+  purrr::map(setNames, c("logA0", "sigma_logA")) %>%
   bind_rows(.id = "xs") %>%
   mutate(xs = as.numeric(xs))
 
@@ -237,7 +237,7 @@ Effective sample sizes
 ```{r}
 test_ess <- test_full %>% 
   split(.$xs) %>% 
-  map(~data.frame(ess = ess(distvec = diff(as.numeric(.$Date))))) %>% 
+  purrr::map(~data.frame(ess = ess(distvec = diff(as.numeric(.$Date))))) %>% 
   bind_rows(.id = "xs")
 
 test_ess %>% summary()
@@ -516,13 +516,13 @@ fmtPepCase <- function(pep, smry = FALSE) {
 
 
 pepsi_full <- nclists %>%
-  map(fmtPepCase) %>% 
+  purrr::map(fmtPepCase) %>% 
   bind_rows(.id = "river") %>% 
   mutate(xs = paste0(as.numeric(as.factor(river)), 
                      sprintf("%04d", as.numeric(xs))))
 
 pepsi_smry <- nclists %>% 
-  map(fmtPepCase, smry = TRUE) %>% 
+  purrr::map(fmtPepCase, smry = TRUE) %>% 
   bind_rows(.id = "river") %>% 
   mutate(xs = paste0(as.numeric(as.factor(river)), 
                      sprintf("%04d", as.numeric(xs))))
@@ -536,20 +536,20 @@ Now I'm ready! Do the same analysis from before.
 
 noprior_pep <- pepsi_full %>% 
   split(.$xs) %>% 
-  map(~logPost_ar1(datadf = data.frame(.$dA, .$Date)))
+  purrr::map(~logPost_ar1(datadf = data.frame(.$dA, .$Date)))
 
 starts_pep <- pepsi_full %>% 
   group_by(xs) %>% 
   summarize(logA0_start = log(-min(dA)) + 1) %>% 
   split(.$xs) %>% 
-  map(~c(.$logA0_start, 0.2))
+  purrr::map(~c(.$logA0_start, 0.2))
 
 starts_pep[[1]]  
 
 startsdf <- starts_pep %>% 
-  map(as.list) %>% 
-  map(setNames, c("logA0", "sdlogA")) %>% 
-  map(as.data.frame) %>% 
+  purrr::map(as.list) %>% 
+  purrr::map(setNames, c("logA0", "sdlogA")) %>% 
+  purrr::map(as.data.frame) %>% 
   bind_rows(.id = "xs")
 
 
@@ -560,9 +560,9 @@ mynlm <- function(x, y) {
 }
 
 pepmle_noprior <- map2(noprior_pep[1:1000], starts_pep[1:1000], mynlm) %>%
-  map(~.$estimate) %>%
-  map(~as.data.frame(as.list(.))) %>%
-  map(setNames, c("logA0", "sigma_logA")) %>%
+  purrr::map(~.$estimate) %>%
+  purrr::map(~as.data.frame(as.list(.))) %>%
+  purrr::map(setNames, c("logA0", "sigma_logA")) %>%
   bind_rows(.id = "xs") %>%
   mutate(xs = as.numeric(xs))
 
@@ -583,7 +583,7 @@ Try with priors.
 ```{r}
 pepsiPriorList <- pepsi_smry %>% 
   split(.$xs) %>% 
-  map(makeMlePriors)
+  purrr::map(makeMlePriors)
 
 withprior_pep <- pepsi_full %>% 
   split(.$xs) %>% 
@@ -593,9 +593,9 @@ withprior_pep <- pepsi_full %>%
 estinds <- 1:length(withprior_pep)
 
 pepmle_withprior <- map2(withprior_pep[estinds], starts_pep[estinds], mynlm) %>%
-  map(~.$estimate) %>%
-  map(~as.data.frame(as.list(.))) %>%
-  map(setNames, c("logA0", "sigma_logA")) %>%
+  purrr::map(~.$estimate) %>%
+  purrr::map(~as.data.frame(as.list(.))) %>%
+  purrr::map(setNames, c("logA0", "sigma_logA")) %>%
   bind_rows(.id = "xs") %>%
   mutate(xs = as.numeric(xs)) %>% 
   arrange(xs)
@@ -716,13 +716,13 @@ fmtPepCase_reach <- function(pep, smry = FALSE) {
 
 
 pepsi_full <- nclists %>%
-  map(fmtPepCase_reach) %>% 
+  purrr::map(fmtPepCase_reach) %>% 
   bind_rows(.id = "river") %>% 
   mutate(reach = paste0(as.numeric(as.factor(river)), 
                      sprintf("%04d", as.numeric(reach))))
 
 pepsi_smry <- nclists %>% 
-  map(fmtPepCase_reach, smry = TRUE) %>% 
+  purrr::map(fmtPepCase_reach, smry = TRUE) %>% 
   bind_rows(.id = "river") %>% 
   mutate(reach = paste0(as.numeric(as.factor(river)), 
                      sprintf("%04d", as.numeric(reach))))
@@ -736,20 +736,20 @@ Now I'm ready! Do the same analysis from before.
 
 noprior_pep <- pepsi_full %>% 
   split(.$reach) %>% 
-  map(~logPost_ar1(datadf = data.frame(.$dA, .$Date)))
+  purrr::map(~logPost_ar1(datadf = data.frame(.$dA, .$Date)))
 
 starts_pep <- pepsi_full %>% 
   group_by(reach) %>% 
   summarize(logA0_start = log(-min(dA)) + 1) %>% 
   split(.$reach) %>% 
-  map(~c(.$logA0_start, 0.2))
+  purrr::map(~c(.$logA0_start, 0.2))
 
 starts_pep[[1]]  
 
 startsdf <- starts_pep %>% 
-  map(as.list) %>% 
-  map(setNames, c("logA0", "sdlogA")) %>% 
-  map(as.data.frame) %>% 
+  purrr::map(as.list) %>% 
+  purrr::map(setNames, c("logA0", "sdlogA")) %>% 
+  purrr::map(as.data.frame) %>% 
   bind_rows(.id = "reach")
 
 
@@ -760,9 +760,9 @@ mynlm <- function(x, y) {
 }
 
 pepmle_noprior <- map2(noprior_pep, starts_pep, mynlm) %>%
-  map(~.$estimate) %>%
-  map(~as.data.frame(as.list(.))) %>%
-  map(setNames, c("logA0", "sigma_logA")) %>%
+  purrr::map(~.$estimate) %>%
+  purrr::map(~as.data.frame(as.list(.))) %>%
+  purrr::map(setNames, c("logA0", "sigma_logA")) %>%
   bind_rows(.id = "reach") %>%
   mutate(reach = as.numeric(reach))
 
@@ -783,7 +783,7 @@ Try with priors.
 ```{r}
 pepsiPriorList <- pepsi_smry %>% 
   split(.$reach) %>% 
-  map(makeMlePriors)
+  purrr::map(makeMlePriors)
 
 withprior_pep <- pepsi_full %>% 
   split(.$reach) %>% 
@@ -793,9 +793,9 @@ withprior_pep <- pepsi_full %>%
 estinds <- 1:length(withprior_pep)
 
 pepmle_withprior <- map2(withprior_pep[estinds], starts_pep[estinds], mynlm) %>%
-  map(~.$estimate) %>%
-  map(~as.data.frame(as.list(.))) %>%
-  map(setNames, c("logA0", "sigma_logA")) %>%
+  purrr::map(~.$estimate) %>%
+  purrr::map(~as.data.frame(as.list(.))) %>%
+  purrr::map(setNames, c("logA0", "sigma_logA")) %>%
   bind_rows(.id = "reach") %>%
   mutate(reach = as.numeric(reach)) %>% 
   arrange(reach)

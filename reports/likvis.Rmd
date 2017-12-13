@@ -462,3 +462,24 @@ anim3 %<-%  gganimate(anim3_gg, filename = "maxlik_hist.gif", interval = 0.2,
 
 ```
 
+
+## A presentation theme
+
+```{r}
+
+inhex <- function(x) {
+  stopifnot(all(x >= 0 & x <= 1))
+  out <- sprintf("%02X", round(x * 255))
+  out
+}
+load("~/GoogleDrive/R/markplots/data/marktheme_dark.rda")
+bkghex <- sprintf("#%s%s%s", inhex(200 / 255), inhex(200 /255), inhex(255 / 255))
+library(ggthemr)
+
+mypal <- ggthemr_palette(background = bkghex) +
+  marktheme_dark
+theme(plot.background = bkghex)
+
+mytheme <- marktheme_dark
+```
+

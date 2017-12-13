@@ -256,7 +256,7 @@ logPost_mvn <- function(datavec, muhat, Sigma) {
 
 # Construct gridded log-posterior for visualization -----------------------
 
-# 2-D (static) version
+# Gridded negative log-likelihood
 
 nll_grid <- function(xvec, yvec, nllfun, accum = FALSE,
                      logshift = 1) {
@@ -272,21 +272,37 @@ nll_grid <- function(xvec, yvec, nllfun, accum = FALSE,
                            y = rep(yvec, each = nx),
                            ymax = rep(yshift, each = nx))
   
-  nlldf <- map(map2(x, y, c), nllfun, cumulative = accum)
+  nllList <- map2(plotparams$x, plotparams$y, c) %>% 
+    purrr::map(nllfun, cumulative = accum)
   
-  out <- plotparams %>% 
-    mutate(logpost = map(map2(x, y, c), nllfun, cumulative = accum),
-           lp_adj = log(logpost - min(logpost) + logshift))
+
+  nlldf <- as.data.frame(nllList) %>% 
+    unname() %>% 
+    t() %>% 
+    as.data.frame() %>% 
+    setNames(1:ncol(.)) %>% 
+    cbind(plotparams, .) %>% 
+    gather(key = "obs", value = "nll", -x : -ymax) %>% 
+    mutate(obs = as.numeric(obs)) %>% 
+    arrange(obs)
   
+  if (!accum) nlldf$obs <- NULL
+  
+  out <- nlldf %>% 
+    mutate(lp_adj = log(nll - min(nll) + logshift))
   out
 }
 
 
-nll_contour <- function(griddf, realx, realy) {
+nll_contour <- function(griddf, realx, realy, mle = NULL) {
   
-  df_hats <- filter(griddf, logpost == min(logpost))
-  
-  ggplot(griddf, aes(x = x, y = y)) +
+  if (is.null(mle)) {
+    df_hats <- filter(griddf, nll == min(nll))
+  } else {
+    df_hats <- data.frame(x = mle[1], y = mle[2])
+  }
+
+  out <- ggplot(griddf, aes(x = x, y = y)) +
     geom_rect(aes(fill = lp_adj, xmin = x, xmax = xmax,
                   ymin = y, ymax = ymax)) +
     geom_contour(aes(z = lp_adj), color = "gray80") +
@@ -296,6 +312,33 @@ nll_contour <- function(griddf, realx, realy) {
     geom_point(data = data.frame(x = realx, y = realy),
                aes(x = x, y = y), size = 5) +
     geom_point(data = df_hats, size = 3, shape = 21, color = "gray")
+  
+  out
+}
+
+nll_contour_anim <- function(griddf, realx, realy, mledf = NULL) {
+  if (is.null(mlelist)) {
+    df_hats <- griddf %>% 
+      group_by(obs) %>% 
+      filter(nll == min(nll)) %>% 
+      ungroup()
+  } else {
+    df_hats <- data.frame(obs = 1:nrow(mledf), x = mledf[[1]], y = mledf[[2]])
+  }
+  
+  out <- ggplot(griddf, aes(x = x, y = y)) +
+    geom_rect(aes(fill = lp_adj, xmin = x, xmax = xmax,
+                  ymin = y, ymax = ymax, frame = obs)) +
+    geom_contour(aes(z = lp_adj, frame = obs), color = "gray80") +
+    scale_y_log10() +
+    scale_fill_continuous(type = "viridis") + 
+    annotation_logticks(sides = "l") +
+    geom_point(data = data.frame(x = realx, y = realy),
+               aes(x = x, y = y), size = 5) +
+    geom_point(data = df_hats, aes(frame = obs),
+               size = 3, shape = 21, color = "gray")
+  
+  out
 }
 
 #' requires a user-specified function giving the density as a function of parameters.
@@ -326,11 +369,11 @@ mledf <- function(factory, datadf, p, ..., cumulative = FALSE) {
   }
   
   dfslist <- 1:nrow(datadf) %>% 
-    map(~1:.) %>% 
-    map(~datadf[., ])
+    purrr::map(~1:.) %>% 
+    purrr::map(~datadf[., ])
   # browser()
   
-  logPosts <- map(dfslist, .f = factory, ...)
+  logPosts <- purrr::map(dfslist, .f = factory, ...)
   
   mle1 <- nlm(logPosts[[1]], p = p)
   
@@ -357,16 +400,16 @@ ts_anim <- function(obs, time = NULL, preplot = FALSE, trace = TRUE) {
     time <- 1:length(obs)
   plotdf <- data.frame(obs = obs, time = time)
 
-  out <- ggplot(plotdf, aes(x = time, y = obs)) +
-    geom_point(aes(frame = time))
+  out <- ggplot(plotdf, aes(x = time, y = obs))
   
   if (preplot) {
-    out <- out + geom_line()
+    out <- out + geom_line(color = "#999999")
   }
   
   if (trace) {
-    out <- out + geom_line(aes(frame = time))
+    out <- out + geom_line(aes(frame = time, cumulative = TRUE), color = "#cccccc")
   }
+  out <- out + geom_point(aes(frame = time), shape = 21, color = "#cccccc")
   
   out
 }
@@ -381,11 +424,11 @@ hist_anim <- function(obs, time = NULL) {
   xmax <- max(obs)
   
   datavecs <- 1:length(obs) %>% 
-    map(~1:.) %>% 
-    map(~obs[.])
+    purrr::map(~1:.) %>% 
+    purrr::map(~obs[.])
   
   animdf_hist <- datavecs %>% 
-    map(~data.frame(obs = ., nobs = length(.))) %>% 
+    purrr::map(~data.frame(obs = ., nobs = length(.))) %>% 
     bind_rows() %>% 
     # left_join(mles, by = "nobs") %>% 
     group_by(nobs) %>% 
@@ -399,10 +442,11 @@ hist_anim <- function(obs, time = NULL) {
   out <- animdf_hist %>% 
     # filter(nobs == 222) %>%
     ggplot(aes(x = obs, y = ..ncount.., frame = nobs)) +
-    geom_histogram(aes(frame = nobs, group = nobs), fill = "gray30", 
-                   alpha = 1, bins = 30, position = "identity") +
+    geom_histogram(aes(frame = nobs, group = nobs), 
+                   alpha = 1, bins = 30, position = "identity", 
+                   fill = "#999999") +
     geom_point(aes(y = 0, alpha = size * 0.075, size = size), 
-               shape = 21, fill = "white", color = "red") +
+               shape = 21, color = "#cccccc") +
     scale_alpha_identity() +
     # scale_shape_manual(values = c(21, 1)) +
     # geom_rug() +
@@ -419,7 +463,7 @@ hist_anim <- function(obs, time = NULL) {
 }
 
 
-# MLE timeseries ----------------------------------------------------------
+  # MLE timeseries ----------------------------------------------------------
 
 #' @param factory negative log likelihood function factory
 #' @param ... Iterable arguments to factory
@@ -427,10 +471,10 @@ hist_anim <- function(obs, time = NULL) {
 #' @param p1 start values for parameters for the first timeseries point
 mle_ts <- function(factory, datadf, p1, priors = NULL) {
   arginds <- 1:nrow(datadf) %>% 
-    map(~1:.)
+    purrr::map(~1:.)
   
   datalist <- lapply(arginds, function(inds) datadf[inds, ])
-  nllfuns <- map(datalist, factory, priors = priors)
+  nllfuns <- purrr::map(datalist, factory, priors = priors)
   # browser()
   p_i <- p1
   mleests <- vector("list", length = length(nllfuns))
